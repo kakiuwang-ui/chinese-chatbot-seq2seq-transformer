@@ -4,16 +4,18 @@
    ===================================================================== */
 
 :root {
-  /* 调色板（稿纸 / 校对世界） */
-  --paper:     #F3F2E9;
-  --paper-2:   #ECEADD;
-  --grid:      #C5D2BD;
-  --ink:       #20262A;
-  --ink-soft:  #4B5258;
-  --jade:      #2C6E54;
-  --jade-deep: #1F4E3C;
-  --vermilion: #C8442B;
-  --amber:     #E3A52E;
+  /* 调色板 · 暗调（深墨稿纸 / 发光注意力矩阵） */
+  --paper:     #121511;   /* 页面底 · 暖近黑 */
+  --paper-2:   #1B201A;   /* 面板 */
+  --grid:      #2B3A30;   /* 隐约绿格 */
+  --ink:       #E9E7DC;   /* 主文字 */
+  --ink-soft:  #9CA69B;
+  --jade:      #57B98C;
+  --jade-deep: #84D6AB;   /* 链接 / 高亮 */
+  --vermilion: #E3664A;
+  --amber:     #E9B14A;
+  --code-bg:   #0E120D;
+  --footer-bg: #0D100C;
 
   /* 字体 */
   --serif: "Noto Serif SC", Georgia, serif;
@@ -51,7 +53,7 @@ body::before {
   position: fixed;
   inset: 0;
   background: var(--paper);
-  opacity: 0.86;
+  opacity: 0.80;
   z-index: -1;
   pointer-events: none;
 }
@@ -107,7 +109,7 @@ section { padding: 92px 0; position: relative; }
 .attn-demo {
   margin: 56px 0 0;
   border: 1px solid var(--grid);
-  background: rgba(255,255,255,0.5);
+  background: rgba(255,255,255,0.035);
   padding: 26px 24px 20px;
 }
 .attn-demo { overflow: hidden; }
@@ -171,7 +173,7 @@ section { padding: 92px 0; position: relative; }
    =================================================================== */
 .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
 .card {
-  background: rgba(255,255,255,0.6);
+  background: rgba(255,255,255,0.04);
   border: 1px solid var(--grid);
   border-top: 3px solid var(--jade);
   padding: 26px 22px;
@@ -188,8 +190,8 @@ section { padding: 92px 0; position: relative; }
 
 pre {
   font-family: var(--mono); font-size: 0.74rem; line-height: 1.6;
-  background: var(--ink); color: #D9E4DC; border-radius: 4px;
-  padding: 14px 16px; overflow-x: auto; margin: 16px 0 0;
+  background: var(--code-bg); color: #C8D6CC; border: 1px solid var(--grid);
+  border-radius: 4px; padding: 14px 16px; overflow-x: auto; margin: 16px 0 0;
 }
 pre .c { color: #7E9C88; }       /* 注释 */
 pre .k { color: var(--amber); }  /* 关键词 */
@@ -212,7 +214,7 @@ code.inline {
 /* 校对式旁注 */
 .margin-note {
   border-left: 3px solid var(--vermilion);
-  background: rgba(200,68,43,0.05);
+  background: rgba(227,102,74,0.10);
   padding: 16px 20px; margin: 28px 0 0;
   font-size: 0.95rem;
 }
@@ -226,11 +228,11 @@ code.inline {
 .data-table th:first-child, .data-table td:first-child { text-align: left; font-family: var(--sans); }
 .data-table th { color: var(--ink-soft); letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.7rem; }
 .data-table .best { color: var(--jade-deep); font-weight: 700; }
-.data-table tr:hover { background: rgba(255,255,255,0.4); }
+.data-table tr:hover { background: rgba(255,255,255,0.05); }
 
 .figs { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 36px; }
-.fig { border: 1px solid var(--grid); background: #fff; padding: 12px; }
-.fig img { width: 100%; height: auto; display: block; }
+.fig { border: 1px solid var(--grid); background: var(--paper-2); padding: 12px; }
+.fig img { width: 100%; height: auto; display: block; border-radius: 2px; }
 .fig figcaption { font-family: var(--mono); font-size: 0.72rem; color: var(--ink-soft); margin-top: 10px; letter-spacing: 0.04em; }
 
 .table-wrap { overflow-x: auto; }
@@ -242,7 +244,7 @@ code.inline {
    =================================================================== */
 .decodes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
 .decode {
-  border: 1px solid var(--grid); padding: 22px; background: rgba(255,255,255,0.5);
+  border: 1px solid var(--grid); padding: 22px; background: rgba(255,255,255,0.035);
 }
 .decode h3 { font-family: var(--mono); font-size: 0.9rem; letter-spacing: 0.06em; color: var(--jade-deep); }
 .decode .ex { font-family: var(--serif); font-size: 1.05rem; color: var(--ink); margin: 12px 0; padding: 10px 14px; background: var(--paper-2); border-radius: 3px; }
@@ -251,7 +253,7 @@ code.inline {
 /* ===================================================================
    Footer
    =================================================================== */
-footer { background: var(--ink); color: #C9D3CC; padding: 64px 0 48px; }
+footer { background: var(--footer-bg); color: #C9D3CC; padding: 64px 0 48px; border-top: 1px solid var(--grid); }
 footer .eyebrow { color: var(--amber); }
 footer a { color: #9FD3B6; }
 footer h2 { color: var(--paper); }
@@ -260,6 +262,56 @@ footer h2 { color: var(--paper); }
 .ref-grid ul { list-style: none; padding: 0; margin: 0; font-size: 0.86rem; line-height: 2; }
 footer .run { font-family: var(--mono); font-size: 0.78rem; background: rgba(255,255,255,0.06); padding: 16px 18px; border-radius: 4px; margin-top: 30px; color: #B7C6BC; }
 footer .colophon { margin-top: 40px; font-size: 0.76rem; color: #7E8C83; border-top: 1px solid #38423B; padding-top: 20px; }
+
+/* ===================================================================
+   深入讲解组件
+   =================================================================== */
+.prose p { max-width: 66ch; }
+.concept {
+  border-left: 3px solid var(--jade);
+  background: rgba(87,185,140,0.07);
+  padding: 16px 20px; margin: 22px 0 0; font-size: 0.95rem;
+}
+.concept b { color: var(--jade); }
+
+.formula {
+  font-family: var(--mono); font-size: 0.95rem; color: var(--amber);
+  background: var(--code-bg); border: 1px solid var(--grid); border-radius: 4px;
+  padding: 18px 20px; margin: 20px 0; text-align: center; overflow-x: auto;
+  letter-spacing: 0.02em;
+}
+.formula .note { display: block; color: var(--ink-soft); font-size: 0.76rem; margin-top: 8px; letter-spacing: 0; }
+
+.steps { counter-reset: s; list-style: none; padding: 0; margin: 26px 0 0; }
+.steps li { position: relative; padding: 0 0 20px 50px; }
+.steps li:not(:last-child)::after {
+  content: ""; position: absolute; left: 14px; top: 30px; bottom: 6px;
+  width: 1px; background: var(--grid);
+}
+.steps li::before {
+  counter-increment: s; content: counter(s);
+  position: absolute; left: 0; top: -2px;
+  font-family: var(--mono); font-weight: 700; color: var(--jade);
+  border: 1px solid var(--grid); background: var(--paper); border-radius: 50%;
+  width: 30px; height: 30px; display: grid; place-items: center; font-size: 0.85rem;
+}
+.steps b { color: var(--ink); }
+
+.qkv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin: 24px 0 0; }
+.qkv div { border: 1px solid var(--grid); padding: 18px; background: rgba(255,255,255,0.025); }
+.qkv .t { font-family: var(--mono); color: var(--amber); font-size: 1.15rem; display: block; margin-bottom: 6px; }
+.qkv p { font-size: 0.88rem; color: var(--ink-soft); margin: 0; }
+
+.twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 44px; align-items: start; }
+
+dl.glossary { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 44px; margin: 26px 0 0; }
+dl.glossary div { border-top: 1px solid var(--grid); padding: 15px 0; }
+dl.glossary dt { font-family: var(--mono); font-size: 0.82rem; color: var(--jade-deep); letter-spacing: 0.03em; }
+dl.glossary dd { margin: 5px 0 0; font-size: 0.9rem; color: var(--ink-soft); }
+
+.data-stats { display: flex; gap: 40px; flex-wrap: wrap; margin: 4px 0 28px; }
+.data-stats div b { display: block; font-size: 2rem; color: var(--jade); font-family: var(--serif); line-height: 1.1; }
+.data-stats div span { font-family: var(--mono); font-size: 0.74rem; color: var(--ink-soft); letter-spacing: 0.06em; }
 
 /* ===================================================================
    动效 + 无障碍
@@ -279,6 +331,10 @@ footer .colophon { margin-top: 40px; font-size: 0.76rem; color: #7E8C83; border-
    =================================================================== */
 @media (max-width: 860px) {
   .cards, .decodes, .figs, .tables-2 { grid-template-columns: 1fr; }
+  .qkv, .twocol, dl.glossary { grid-template-columns: 1fr; gap: 0 0; }
+  .qkv { gap: 14px; }
+  .twocol { gap: 32px; }
+  .data-stats { gap: 28px; }
   section { padding: 64px 0; }
   .hero { padding: 84px 0 56px; }
   .spine li { grid-template-columns: 44px 1fr; gap: 16px; }

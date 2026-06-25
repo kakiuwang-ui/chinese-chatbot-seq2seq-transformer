@@ -29,13 +29,59 @@
     <figure class="attn-demo reveal">
       <figcaption class="cap">
         <span>注意力矩阵 · 生成「那就和我聊天了」时在看输入哪里</span>
-        <span>示意 · viridis→朱红 = 注意力强度</span>
+        <span>示意 · 暗格→朱红 = 注意力强度</span>
       </figcaption>
       <div class="attn-grid" id="attn-grid" aria-label="注意力热力图示意"></div>
       <div class="legend"><span>弱</span><span class="bar"></span><span>强</span></div>
     </figure>
   </div>
 </header>
+
+<!-- ================= 方法论 ================= -->
+<section>
+  <div class="wrap prose">
+    <div class="section-head reveal">
+      <p class="eyebrow">方法论 · 为什么逐代手写</p>
+      <h2>撞瓶颈式学习</h2>
+    </div>
+    <div class="reveal">
+      <p class="lede">深度学习最容易「会用不会懂」：调个预训练模型就能跑分类、跑生成，但说不清它为什么这么设计。本项目刻意反着来。</p>
+      <p>我们按真实历史顺序，从最简单的 Seq2Seq 开始，每实现一代就<b>故意暴露它的缺陷</b>——用长句把基线问崩，亲眼看到「固定 context 向量」装不下整句信息；再引入注意力去补这个洞；当注意力又受限于 RNN 无法并行时，才迎来 Transformer。每一步的动机都是上一步的痛点，技术不再是孤立的名词，而是一条有因果的链。</p>
+      <div class="concept">
+        <b>核心信念：</b>理解一个技术的最佳方式，是先理解「没有它会怎样」。所以三代模型共用同一套数据、同样的训练规模，让差异只来自架构本身——这样的对比才有说服力。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 数据与预处理 ================= -->
+<section class="bottleneck">
+  <div class="wrap prose">
+    <div class="section-head reveal">
+      <p class="eyebrow">阶段 0 · 一切的地基</p>
+      <h2>数据从哪来，怎么洗</h2>
+    </div>
+    <div class="reveal">
+      <div class="data-stats">
+        <div><b>50w</b><span>小黄鸡原始对话</span></div>
+        <div><b>4.5w</b><span>清洗后句对（抽样5w）</span></div>
+        <div><b>13854</b><span>词表大小</span></div>
+        <div><b>4</b><span>特殊符号</span></div>
+      </div>
+      <p>数据是<b>小黄鸡 50w 中文闲聊语料</b>。这份数据真实但「脏」——大量颜文字、表情、纯符号、超短句。直接拿来训练会让模型学一身坏毛病，所以预处理这步本身就是工程亮点：</p>
+      <ol class="steps">
+        <li><b>解析</b>：按 <code class="inline">E</code> / <code class="inline">M</code> 标记，把原始文件切成「问 → 答」句对。</li>
+        <li><b>清洗</b>：正则只保留中英文、数字与常见标点，删掉 emoji / 颜文字 / 特殊符号；过滤纯符号句、空句、词数超 30 的超长句。</li>
+        <li><b>分词</b>：用 jieba 做词级别切分。</li>
+        <li><b>建词表</b>：词频 ≥ 2 才入表，并预留 4 个特殊符号 —— <code class="inline">&lt;pad&gt;</code> 填充、<code class="inline">&lt;bos&gt;</code> 起始、<code class="inline">&lt;eos&gt;</code> 结束、<code class="inline">&lt;unk&gt;</code> 未登录词。</li>
+        <li><b>张量化</b>：句子转 id，按 batch 动态 padding；目标序列包成 <code class="inline">&lt;bos&gt; … &lt;eos&gt;</code>。</li>
+      </ol>
+      <div class="concept">
+        <b>两个易忽略的设计：</b>① 目标必须带 <code class="inline">&lt;bos&gt;/&lt;eos&gt;</code> —— 解码器靠 <code class="inline">&lt;bos&gt;</code> 启动、靠预测出 <code class="inline">&lt;eos&gt;</code> 知道何时停笔。② 计算损失时用 <code class="inline">ignore_index=&lt;pad&gt;</code> 把填充位屏蔽，否则模型会把大量精力浪费在「预测 pad」上。
+      </div>
+    </div>
+  </div>
+</section>
 
 <!-- ================= 演进时间线 ================= -->
 <section>
@@ -50,7 +96,7 @@
         <div class="no">01</div>
         <div>
           <p class="who">词向量 · Word2Vec</p>
-          <p class="solves">把字词变成稠密向量，机器才能计算。替代了维度灾难般的 one-hot。</p>
+          <p class="solves">把字词变成稠密向量，机器才能计算。one-hot 维度爆炸且词与词之间正交（无相似度），词向量用低维连续空间让「猫」和「狗」彼此靠近。</p>
           <span class="tag">nn.Embedding</span>
         </div>
       </li>
@@ -58,7 +104,7 @@
         <div class="no">02</div>
         <div>
           <p class="who">RNN / LSTM</p>
-          <p class="solves">让模型处理变长序列、拥有「记忆」。LSTM 的门控缓解了 RNN 的梯度消失。</p>
+          <p class="solves">让模型按时间步处理变长序列、携带「记忆」。RNN 会梯度消失、记不住长依赖；LSTM 用遗忘门 / 输入门 / 输出门控制信息的保留与丢弃，能记更久。</p>
           <span class="tag">hidden / cell state</span>
         </div>
       </li>
@@ -66,7 +112,7 @@
         <div class="no">03</div>
         <div>
           <p class="who">Seq2Seq · 编码器-解码器</p>
-          <p class="solves">两个 LSTM：一个读问句、压成向量，一个生成答句。<b>缺陷：整句被压成一个固定向量，长句信息丢失。</b></p>
+          <p class="solves">两个 LSTM：编码器读问句、压成一个向量，解码器据此逐字生成答句。开创了「序列进、序列出」的范式。<b>缺陷：不论问句多长，都被压成一个固定向量，长句信息严重丢失。</b></p>
           <span class="tag">Teacher forcing</span>
         </div>
       </li>
@@ -74,7 +120,7 @@
         <div class="no">04</div>
         <div>
           <p class="who">Attention · 注意力机制</p>
-          <p class="solves">生成每个字时，回头看输入的不同位置、动态加权。解决了固定 context 瓶颈。<b>缺陷：仍依赖 RNN，无法并行、长依赖弱。</b></p>
+          <p class="solves">解码每个字时，对编码器所有时刻算一组权重、动态加权求和，得到「这一刻该看哪里」的 context。彻底解决固定向量瓶颈。<b>缺陷：注意力仍架在 RNN 之上，必须按时间步串行，无法并行、长依赖仍偏弱。</b></p>
           <span class="tag">动态 context</span>
         </div>
       </li>
@@ -82,8 +128,8 @@
         <div class="no">05</div>
         <div>
           <p class="who">Transformer · Attention is all you need</p>
-          <p class="solves">扔掉 RNN，纯注意力堆叠 + 位置编码。训练可并行，是现代大模型的基石。</p>
-          <span class="tag">multi-head · 3 种 mask</span>
+          <p class="solves">干脆扔掉 RNN，用纯注意力堆叠 + 位置编码搭建编码器/解码器。训练可整句并行，长依赖一步直达，是现代大模型的共同基石。</p>
+          <span class="tag">multi-head · 3 种 mask · 并行</span>
         </div>
       </li>
     </ol>
@@ -101,51 +147,140 @@
       <article class="card">
         <span class="kicker">STAGE 01</span>
         <h3>Seq2Seq</h3>
-        <p class="role">两个 LSTM 的基线。Encoder 把问句压成最终的 (hidden, cell)。</p>
-        <p class="point">固定 context 向量是全部「记忆」</p>
+        <p class="role">两个 LSTM 的基线。编码器把问句压成最终的 (hidden, cell) 作为全部「记忆」。</p>
+        <p class="point">固定 context 向量是唯一的信息通道</p>
         <p class="point">Teacher forcing 训练，自回归生成</p>
-        <p class="point">长句必然崩坏 —— 这是预期</p>
-        <pre><span class="c"># Encoder 只交一个向量</span>
+        <p class="point">长句必然崩坏 —— 这是预期，不是 bug</p>
+        <pre><span class="c"># 编码器只交出一个向量</span>
 _, (<span class="k">hidden</span>, <span class="k">cell</span>) = self.lstm(packed)
 <span class="c"># 长句信息全压在这里 → 瓶颈</span></pre>
       </article>
       <article class="card accent-a">
         <span class="kicker">STAGE 02</span>
         <h3>Attention-Seq2Seq</h3>
-        <p class="role">保留每个时刻的编码输出，解码时手写加性注意力打分。</p>
-        <p class="point">动态 context，按需加权输入</p>
+        <p class="role">编码器保留每个时刻的输出；解码时手写加性注意力，按需取用。</p>
+        <p class="point">动态 context，逐字决定看输入哪里</p>
         <p class="point">注意力权重可导出为热力图</p>
-        <p class="point">长句回复明显改善</p>
-        <pre><span class="c"># 手写 Bahdanau 打分</span>
+        <p class="point">长句回复明显改善、收敛更快</p>
+        <pre><span class="c"># 手写 Bahdanau 加性打分</span>
 energy = <span class="k">tanh</span>(W·[dec; enc])
 score  = v·energy
-weights = <span class="k">softmax</span>(score)</pre>
+weights = <span class="k">softmax</span>(score)
+context = Σ weights · enc</pre>
       </article>
       <article class="card accent-v">
         <span class="kicker">STAGE 03</span>
         <h3>Transformer</h3>
-        <p class="role">从零手写多头注意力、位置编码、三种 mask，对照原论文。</p>
-        <p class="point">纯注意力，无 RNN</p>
+        <p class="role">从零手写多头注意力、位置编码、三种 mask，对照原论文逐模块复现。</p>
+        <p class="point">纯注意力，无 RNN，长依赖一步直达</p>
         <p class="point">整句并行训练，速度最快</p>
         <p class="point">生成多样性、连贯度最佳</p>
         <pre><span class="c"># Scaled Dot-Product</span>
 scores = Q·Kᵀ / <span class="k">sqrt</span>(d_k)
-scores = scores.<span class="k">masked_fill</span>(mask==0, -1e9)
-attn = <span class="k">softmax</span>(scores)</pre>
+scores = scores.<span class="k">masked_fill</span>(mask==0,-1e9)
+attn = <span class="k">softmax</span>(scores)
+out  = attn · V</pre>
       </article>
     </div>
+  </div>
+</section>
 
+<!-- ================= 注意力机制详解 ================= -->
+<section>
+  <div class="wrap prose">
+    <div class="section-head reveal">
+      <p class="eyebrow">深入 · 整个 Transformer 的心脏</p>
+      <h2>注意力到底在算什么</h2>
+      <p class="lede">一句话：用「查询」去和一堆「键」比相似度，再据此对「值」加权求和。把它想成一次软性的查字典。</p>
+    </div>
+    <div class="reveal">
+      <div class="qkv">
+        <div><span class="t">Q · Query</span><p>当前这个字的「我想找什么」。</p></div>
+        <div><span class="t">K · Key</span><p>每个位置的「我是什么」，供 Q 来匹配。</p></div>
+        <div><span class="t">V · Value</span><p>每个位置真正携带的信息，按匹配度被取用。</p></div>
+      </div>
+      <div class="formula">
+        Attention(Q, K, V) = softmax( Q·Kᵀ / √d_k ) · V
+        <span class="note">Q·Kᵀ 算相似度 → softmax 归一成权重 → 对 V 加权求和</span>
+      </div>
+      <div class="twocol">
+        <div class="concept">
+          <b>为什么要除以 √d_k？</b> 向量维度越高，点积的数值越容易变得很大，把 softmax 推进「几乎一个位置占满」的饱和区，梯度趋近 0、难以训练。除以 √d_k 把方差拉回 ~1，让分布平滑、梯度健康。
+        </div>
+        <div class="concept">
+          <b>为什么要「多头」？</b> 一组 Q/K/V 只能学一种关系。多头把向量拆成 h 份（本项目 8 头），各自在不同子空间并行注意，再拼接——有的头管语法、有的头管指代，模型同时捕捉多种关系。
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 三种 mask ================= -->
+<section class="bottleneck">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <p class="eyebrow">深入 · 初学者最大的混淆点</p>
+      <h2>三种 mask，搞清就通了八成</h2>
+      <p class="lede">mask 的作用很统一：把不该看的位置在 softmax 之前置成 −∞，让它的权重变成 0。区别只在「屏蔽谁」。</p>
+    </div>
+    <div class="decodes reveal">
+      <article class="decode">
+        <h3>① src-padding mask</h3>
+        <p class="ex">屏蔽输入的 &lt;pad&gt;</p>
+        <p>编码器自注意力 + 解码器交叉注意力中使用。一个 batch 里短句被补了 pad，不能让注意力把这些无意义的填充也算进去。</p>
+      </article>
+      <article class="decode">
+        <h3>② look-ahead mask</h3>
+        <p class="ex">屏蔽「未来的字」</p>
+        <p>解码器自注意力专用，是个上三角矩阵。生成第 t 个字时只能看 1…t，不能偷看 t 之后——否则训练时等于抄答案，推理时就废了。</p>
+      </article>
+      <article class="decode">
+        <h3>③ tgt-padding mask</h3>
+        <p class="ex">屏蔽目标的 &lt;pad&gt;</p>
+        <p>解码器里和 ② 取交集。既不能看未来，也不能看目标序列里的填充位，两个条件同时满足。</p>
+      </article>
+    </div>
     <div class="margin-note reveal">
-      <b>核心难点：三种 mask。</b> 搞清这三个，Transformer 就通了八成 ——
-      ① <b>src-padding mask</b>：屏蔽输入的 &lt;pad&gt;；
-      ② <b>look-ahead mask</b>：解码器自注意力的上三角，防止偷看未来的字；
-      ③ <b>tgt-padding mask</b>：屏蔽目标的 &lt;pad&gt;，与 ② 取交集。
+      <b>关键实现细节：</b>三种 mask 都是先把被屏蔽位置的注意力分数 <code class="inline">masked_fill(mask==0, -1e9)</code>，再过 softmax —— 因为 e<sup>−∞</sup> ≈ 0，这些位置自然分不到权重。look-ahead mask 用 <code class="inline">torch.tril</code>（下三角为 1）一行生成。
+    </div>
+  </div>
+</section>
+
+<!-- ================= 位置编码 / 并行 ================= -->
+<section>
+  <div class="wrap prose">
+    <div class="section-head reveal">
+      <p class="eyebrow">深入 · 另外两个关键设计</p>
+      <h2>位置编码，与「为什么能并行」</h2>
+    </div>
+    <div class="twocol reveal">
+      <div>
+        <h3>位置编码 · Positional Encoding</h3>
+        <p>注意力本身是<b>对位置无感</b>的——打乱输入顺序，输出不变。但「我打你」和「你打我」意思天差地别，词序必须保留。Transformer 没有 RNN 的天然时序，于是把位置信息<b>显式注入</b>词向量。</p>
+        <div class="formula" style="text-align:left">
+          PE(pos, 2i)&nbsp;&nbsp;= sin(pos / 10000<sup>2i/d</sup>)<br>
+          PE(pos, 2i+1) = cos(pos / 10000<sup>2i/d</sup>)
+          <span class="note">不同维度用不同频率的正弦/余弦，组合出每个位置独一无二的编码</span>
+        </div>
+      </div>
+      <div>
+        <h3>为什么 Transformer 能并行训练</h3>
+        <p>这是它取代 RNN 的根本原因，也是答辩必讲点。</p>
+        <ol class="steps">
+          <li><b>RNN 系</b>（Seq2Seq / Attn）：解码必须一个时间步算完再算下一步，是 Python 里的串行循环，慢。</li>
+          <li><b>Transformer</b>：训练时整个目标句一次性喂入，靠 look-ahead mask 保证每个位置只看得到自己之前的字。</li>
+          <li><b>结果</b>：所有位置的损失在<b>一次前向</b>里并行算完，无时间步循环——这正是它能扩展到超大模型的关键。</li>
+        </ol>
+      </div>
+    </div>
+    <div class="concept reveal">
+      <b>Teacher forcing 是什么？</b> 训练时，解码器每一步的输入喂的是「真值的上一个字」而非自己的预测，让训练稳定、收敛快。推理时没有真值，只能喂自己上一步的输出（自回归）——训练与推理的这点差异称为 exposure bias。
     </div>
   </div>
 </section>
 
 <!-- ================= 撞瓶颈 ================= -->
-<section>
+<section class="bottleneck">
   <div class="wrap">
     <div class="section-head reveal">
       <p class="eyebrow">实验现象 · 撞瓶颈式学习</p>
@@ -163,15 +298,19 @@ attn = <span class="k">softmax</span>(scores)</pre>
         </tbody>
       </table>
     </div>
+    <div class="margin-note reveal">
+      <b>两个固有难题：</b>① <b>安全回复</b>——闲聊数据「一问多答」，模型为降低损失学会蒙「对对」「你的」这类高频通用句；② <b>固定 context 瓶颈</b>——基线长句直接崩坏。注意力与 Transformer 缓解了它们，但生成式对话本身难以根治，这是诚实的边界。
+    </div>
   </div>
 </section>
 
 <!-- ================= 结果 ================= -->
-<section class="bottleneck">
+<section>
   <div class="wrap">
     <div class="section-head reveal">
       <p class="eyebrow">量化结果 · 一个反直觉的发现</p>
       <h2>困惑度 ≠ 生成质量</h2>
+      <p class="lede">统一配置：5 万样本 / 12 epoch / Apple mps / 隐藏维度 256 / 8 头 / 3 层。</p>
     </div>
 
     <div class="tables-2 reveal">
@@ -207,8 +346,8 @@ attn = <span class="k">softmax</span>(scores)</pre>
 
     <div class="margin-note reveal">
       <b>为什么 Transformer 的 ppl 反而不是最低？</b> 困惑度衡量的是 teacher forcing 下「预测下一字」的准确度，
-      而非真实自回归生成的连贯度。Transformer 在真实生成（对话、Distinct 多样性）上最优；它的 ppl 偏高，
-      源于仅训练 12 轮、未用 Noam warmup，相对其容量训练不足。<b>评价生成模型不能只看一个指标。</b>
+      而非真实自回归生成的连贯度。Transformer 在真实生成（对话、Distinct 多样性）上最优；它 ppl 偏高，
+      源于仅训练 12 轮、未用 Noam warmup，相对其容量训练不足。<b>评价生成模型不能只看一个指标</b>——这是本项目最重要的发现之一。
     </div>
 
     <div class="figs reveal">
@@ -225,30 +364,57 @@ attn = <span class="k">softmax</span>(scores)</pre>
 </section>
 
 <!-- ================= 解码策略 ================= -->
-<section>
+<section class="bottleneck">
   <div class="wrap">
     <div class="section-head reveal">
       <p class="eyebrow">优化 · 不重训也能提升的部分</p>
       <h2>训练好之后，怎么「选词」也很关键</h2>
-      <p class="lede">同一个模型，换一种解码策略，回复质量天差地别。三者皆已禁 &lt;unk&gt; + 重复惩罚。</p>
+      <p class="lede">同一个模型，换一种解码策略，回复质量天差地别。三者皆已加：禁 &lt;unk&gt; + 重复惩罚。</p>
     </div>
     <div class="decodes reveal">
       <article class="decode">
         <h3>greedy</h3>
         <p class="ex">你好可爱</p>
-        <p>每步只挑当前最大概率。最快，但易陷入重复与保守的「安全回复」。</p>
+        <p>每步只挑当前概率最大的字。最快，但容易陷入重复，并偏好高频的「安全回复」。</p>
       </article>
       <article class="decode">
         <h3>beam search</h3>
         <p class="ex">为什么要幸福，开心点嘛？</p>
-        <p>同时保留多条候选，选整句概率最高的。回复最完整，Distinct-2 最高。</p>
+        <p>同时保留 top-k 条候选序列，最终选<b>整句</b>概率最高的，而非每步贪心。回复最完整，Distinct-2 最高。</p>
       </article>
       <article class="decode">
         <h3>top-k 采样</h3>
         <p class="ex">是你才怪呢你全家都好</p>
-        <p>在前 k 个高概率词里按概率随机采样。回复更「活」、口语化、不呆板。</p>
+        <p>在前 k 个高概率字里按概率随机采样，引入可控随机性。回复更「活」、口语化、不呆板。</p>
       </article>
     </div>
+    <div class="concept reveal">
+      <b>禁 &lt;unk&gt; + 重复惩罚怎么做的：</b>解码每步把 <code class="inline">&lt;unk&gt;</code> 的 logit 直接置 −∞（永不输出未登录词）；对已经生成过的字，把它的 logit 除以一个惩罚系数（1.3）来压低，打断「下楼下楼下楼」式的复读。两招都只改解码、无需重训。
+    </div>
+  </div>
+</section>
+
+<!-- ================= 关键概念速查 ================= -->
+<section>
+  <div class="wrap">
+    <div class="section-head reveal">
+      <p class="eyebrow">附录 · 关键概念速查</p>
+      <h2>一页看懂这些名词</h2>
+    </div>
+    <dl class="glossary reveal">
+      <div><dt>词向量 Embedding</dt><dd>把离散的字词映射成低维稠密向量，相近语义彼此靠近。</dd></div>
+      <div><dt>Teacher forcing</dt><dd>训练时解码器输入喂真值上一字，加速且稳定收敛。</dd></div>
+      <div><dt>自回归解码</dt><dd>推理时逐字生成，每步喂自己上一步的输出。</dd></div>
+      <div><dt>固定 context 瓶颈</dt><dd>Seq2Seq 把整句压成一个向量，长句信息丢失。</dd></div>
+      <div><dt>Q / K / V</dt><dd>查询 / 键 / 值，注意力的三要素：用 Q 匹配 K，加权取 V。</dd></div>
+      <div><dt>Scaled Dot-Product</dt><dd>点积相似度除以 √d_k 再 softmax，稳定梯度。</dd></div>
+      <div><dt>Multi-Head</dt><dd>把注意力拆成多个子空间并行，捕捉多种关系。</dd></div>
+      <div><dt>位置编码</dt><dd>用正弦/余弦把词序显式注入，弥补注意力的位置无感。</dd></div>
+      <div><dt>look-ahead mask</dt><dd>上三角掩码，禁止解码器偷看未来的字。</dd></div>
+      <div><dt>困惑度 Perplexity</dt><dd>预测下一字不确定性的指标，越低越好（≠生成质量）。</dd></div>
+      <div><dt>Distinct-n</dt><dd>不重复 n-gram 占比，衡量回复多样性。</dd></div>
+      <div><dt>Beam Search</dt><dd>保留多条候选、选整句最优的解码策略。</dd></div>
+    </dl>
   </div>
 </section>
 
@@ -262,7 +428,7 @@ attn = <span class="k">softmax</span>(scores)</pre>
         <h4>入门（中文）</h4>
         <ul>
           <li><a href="https://zh.d2l.ai">动手学深度学习 d2l</a></li>
-          <li>李宏毅 · self-attention</li>
+          <li>李宏毅 · self-attention（B站/YT）</li>
         </ul>
       </div>
       <div>
@@ -275,17 +441,23 @@ attn = <span class="k">softmax</span>(scores)</pre>
       <div>
         <h4>论文</h4>
         <ul>
-          <li>Seq2Seq · 1409.3215</li>
-          <li>Attention · 1409.0473</li>
-          <li>Transformer · 1706.03762</li>
+          <li>Seq2Seq · arXiv 1409.3215</li>
+          <li>Attention · arXiv 1409.0473</li>
+          <li>Transformer · arXiv 1706.03762</li>
+        </ul>
+      </div>
+      <div>
+        <h4>课程</h4>
+        <ul>
+          <li><a href="https://web.stanford.edu/class/cs224n/">斯坦福 CS224n</a></li>
         </ul>
       </div>
     </div>
     <pre class="run"># 三代模型，同样的命令风格
-python seq2seq.py train     &amp;&amp; python seq2seq.py chat
+python seq2seq.py train      &amp;&amp; python seq2seq.py chat
 python attn_seq2seq.py train &amp;&amp; python attn_seq2seq.py heatmap "你今天心情怎么样"
 python transformer.py train  &amp;&amp; python transformer.py chat
-python eval.py              <span class="c"># Distinct 多样性评测</span></pre>
+python eval.py               <span class="c"># Distinct 多样性评测</span></pre>
     <p class="colophon">中文聊天机器人 · 三代模型对比 · 学习站 — 视觉母题：方格稿纸 ⟷ 注意力矩阵</p>
   </div>
 </footer>
