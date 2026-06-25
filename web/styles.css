@@ -4,18 +4,18 @@
    ===================================================================== */
 
 :root {
-  /* 调色板 · 暗调（深墨稿纸 / 发光注意力矩阵） */
-  --paper:     #121511;   /* 页面底 · 暖近黑 */
-  --paper-2:   #1B201A;   /* 面板 */
-  --grid:      #2B3A30;   /* 隐约绿格 */
-  --ink:       #E9E7DC;   /* 主文字 */
-  --ink-soft:  #9CA69B;
+  /* 调色板 · 纯黑暗调（中性底 + 发光注意力矩阵） */
+  --paper:     #000000;   /* 页面底 · 纯黑 */
+  --paper-2:   #141414;   /* 面板 */
+  --grid:      #272727;   /* 隐约方格（中性灰） */
+  --ink:       #ECEAE3;   /* 主文字 */
+  --ink-soft:  #9B9B95;
   --jade:      #57B98C;
   --jade-deep: #84D6AB;   /* 链接 / 高亮 */
   --vermilion: #E3664A;
   --amber:     #E9B14A;
-  --code-bg:   #0E120D;
-  --footer-bg: #0D100C;
+  --code-bg:   #0A0A0A;
+  --footer-bg: #000000;
 
   /* 字体 */
   --serif: "Noto Serif SC", Georgia, serif;
@@ -269,7 +269,7 @@ footer .colophon { margin-top: 40px; font-size: 0.76rem; color: #7E8C83; border-
 .prose p { max-width: 66ch; }
 .concept {
   border-left: 3px solid var(--jade);
-  background: rgba(87,185,140,0.07);
+  background: rgba(255,255,255,0.035);
   padding: 16px 20px; margin: 22px 0 0; font-size: 0.95rem;
 }
 .concept b { color: var(--jade); }
