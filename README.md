@@ -29,8 +29,10 @@
 | [data_pipeline.py](data_pipeline.py) | 阶段0：`.conv` 解析 → 清洗(去emoji/短句) → 词表 → DataLoader（三模型共用） |
 | [seq2seq.py](seq2seq.py) | 阶段1：Seq2Seq (LSTM) 基线 |
 | [attn_seq2seq.py](attn_seq2seq.py) | 阶段2：Attention-Seq2Seq + 注意力热力图 |
-| [transformer.py](transformer.py) | 阶段3：从零手写 Transformer + 交叉注意力热力图 |
+| [transformer.py](transformer.py) | 阶段3：从零手写 Transformer + 热力图 + greedy/beam/topk 解码 |
+| [eval.py](eval.py) | 优化：Distinct-1/2 多样性评测（三模型 + 三种解码策略对比） |
 | [实习报告.md](实习报告.md) | **完整实习报告**：思考过程、方法论、实现、实验对比、结论 |
+| [优化方案.md](优化方案.md) | 优化的动机、问题、期望效果、方案与实测对比 |
 | [学习路线.md](学习路线.md) | 分模块学习路线 + 一周阅读顺序 + 资源 |
 | [题目二_聊天机器人_实习计划.md](题目二_聊天机器人_实习计划.md) | 实习计划、分工、交付清单、参考资料 |
 | `Attention Is All You Need.pdf` | Transformer 原论文 |
