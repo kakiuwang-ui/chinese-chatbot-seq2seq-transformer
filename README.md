@@ -6,6 +6,14 @@
 `Seq2Seq(LSTM) → Attention-Seq2Seq → Transformer`。
 每一代都为解决上一代的缺陷而生——理解"动机"，而非调包。
 
+> 📖 **在线学习站**：https://kakiuwang-ui.github.io/chinese-chatbot-seq2seq-transformer/ （本地打开 [web/index.html](web/index.html)）
+
+### 注意力热力图（生成时模型在看输入哪里）
+
+| ② Attention-Seq2Seq | ③ Transformer |
+|---|---|
+| ![attn](web/assets/attn_heatmap.png) | ![tf](web/assets/tf_heatmap.png) |
+
 ---
 
 ## 技术链（每步解决上一步的缺陷）

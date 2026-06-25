@@ -1,0 +1,7 @@
+# 核心依赖（Python 3.13 / Apple mps 实测）
+torch>=2.1
+jieba>=0.42
+matplotlib>=3.8
+
+# 可选：网页聊天界面 app.py 需要
+# gradio>=4.0
