@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>从 Seq2Seq 到 Transformer · 中文聊天机器人学习站</title>
+<meta name="description" content="按 NLP 技术演进顺序，从零实现并对比 Seq2Seq、Attention、Transformer 三代生成式对话模型的学习网站。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ================= HERO ================= -->
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">NLP 综合实习 · 题目二 · 学习站</p>
+    <h1>从 Seq2Seq <span class="arrow">→</span> Transformer</h1>
+    <p class="sub">不直接调用最强模型，而是按技术演进顺序逐代手写，让每一代亲自撞上自己的瓶颈——这样掌握的是「为什么」，而不是 API。</p>
+    <div class="meta">
+      <span><b>3</b> 代模型</span>
+      <span><b>1</b> 套数据管线</span>
+      <span><b>0</b> 调包（核心模块全手写）</span>
+      <span><b>4.5w</b> 中文对话对</span>
+    </div>
+
+    <!-- 签名：注意力矩阵（= 方格稿纸） -->
+    <figure class="attn-demo reveal">
+      <figcaption class="cap">
+        <span>注意力矩阵 · 生成「那就和我聊天了」时在看输入哪里</span>
+        <span>示意 · viridis→朱红 = 注意力强度</span>
+      </figcaption>
+      <div class="attn-grid" id="attn-grid" aria-label="注意力热力图示意"></div>
+      <div class="legend"><span>弱</span><span class="bar"></span><span>强</span></div>
+    </figure>
+  </div>
+</header>
+
+<!-- ================= 演进时间线 ================= -->
+<section>
+  <div class="wrap">
+    <div class="section-head reveal">
+      <p class="eyebrow">技术演进 · 一条解决缺陷的链条</p>
+      <h2>每一代，都为修补上一代而生</h2>
+      <p class="lede">这五步不是并列的知识点，而是一条因果链。读懂「下一个为什么出现」，整条链就通了。</p>
+    </div>
+    <ol class="spine reveal">
+      <li>
+        <div class="no">01</div>
+        <div>
+          <p class="who">词向量 · Word2Vec</p>
+          <p class="solves">把字词变成稠密向量，机器才能计算。替代了维度灾难般的 one-hot。</p>
+          <span class="tag">nn.Embedding</span>
+        </div>
+      </li>
+      <li>
+        <div class="no">02</div>
+        <div>
+          <p class="who">RNN / LSTM</p>
+          <p class="solves">让模型处理变长序列、拥有「记忆」。LSTM 的门控缓解了 RNN 的梯度消失。</p>
+          <span class="tag">hidden / cell state</span>
+        </div>
+      </li>
+      <li>
+        <div class="no">03</div>
+        <div>
+          <p class="who">Seq2Seq · 编码器-解码器</p>
+          <p class="solves">两个 LSTM：一个读问句、压成向量，一个生成答句。<b>缺陷：整句被压成一个固定向量，长句信息丢失。</b></p>
+          <span class="tag">Teacher forcing</span>
+        </div>
+      </li>
+      <li>
+        <div class="no">04</div>
+        <div>
+          <p class="who">Attention · 注意力机制</p>
+          <p class="solves">生成每个字时，回头看输入的不同位置、动态加权。解决了固定 context 瓶颈。<b>缺陷：仍依赖 RNN，无法并行、长依赖弱。</b></p>
+          <span class="tag">动态 context</span>
+        </div>
+      </li>
+      <li>
+        <div class="no">05</div>
+        <div>
+          <p class="who">Transformer · Attention is all you need</p>
+          <p class="solves">扔掉 RNN，纯注意力堆叠 + 位置编码。训练可并行，是现代大模型的基石。</p>
+          <span class="tag">multi-head · 3 种 mask</span>
+        </div>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- ================= 三代模型 ================= -->
+<section class="bottleneck">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <p class="eyebrow">三代实现 · 同一份数据 · 公平对比</p>
+      <h2>它们到底差在哪</h2>
+    </div>
+    <div class="cards reveal">
+      <article class="card">
+        <span class="kicker">STAGE 01</span>
+        <h3>Seq2Seq</h3>
+        <p class="role">两个 LSTM 的基线。Encoder 把问句压成最终的 (hidden, cell)。</p>
+        <p class="point">固定 context 向量是全部「记忆」</p>
+        <p class="point">Teacher forcing 训练，自回归生成</p>
+        <p class="point">长句必然崩坏 —— 这是预期</p>
+        <pre><span class="c"># Encoder 只交一个向量</span>
+_, (<span class="k">hidden</span>, <span class="k">cell</span>) = self.lstm(packed)
+<span class="c"># 长句信息全压在这里 → 瓶颈</span></pre>
+      </article>
+      <article class="card accent-a">
+        <span class="kicker">STAGE 02</span>
+        <h3>Attention-Seq2Seq</h3>
+        <p class="role">保留每个时刻的编码输出，解码时手写加性注意力打分。</p>
+        <p class="point">动态 context，按需加权输入</p>
+        <p class="point">注意力权重可导出为热力图</p>
+        <p class="point">长句回复明显改善</p>
+        <pre><span class="c"># 手写 Bahdanau 打分</span>
+energy = <span class="k">tanh</span>(W·[dec; enc])
+score  = v·energy
+weights = <span class="k">softmax</span>(score)</pre>
+      </article>
+      <article class="card accent-v">
+        <span class="kicker">STAGE 03</span>
+        <h3>Transformer</h3>
+        <p class="role">从零手写多头注意力、位置编码、三种 mask，对照原论文。</p>
+        <p class="point">纯注意力，无 RNN</p>
+        <p class="point">整句并行训练，速度最快</p>
+        <p class="point">生成多样性、连贯度最佳</p>
+        <pre><span class="c"># Scaled Dot-Product</span>
+scores = Q·Kᵀ / <span class="k">sqrt</span>(d_k)
+scores = scores.<span class="k">masked_fill</span>(mask==0, -1e9)
+attn = <span class="k">softmax</span>(scores)</pre>
+      </article>
+    </div>
+
+    <div class="margin-note reveal">
+      <b>核心难点：三种 mask。</b> 搞清这三个，Transformer 就通了八成 ——
+      ① <b>src-padding mask</b>：屏蔽输入的 &lt;pad&gt;；
+      ② <b>look-ahead mask</b>：解码器自注意力的上三角，防止偷看未来的字；
+      ③ <b>tgt-padding mask</b>：屏蔽目标的 &lt;pad&gt;，与 ② 取交集。
+    </div>
+  </div>
+</section>
+
+<!-- ================= 撞瓶颈 ================= -->
+<section>
+  <div class="wrap">
+    <div class="section-head reveal">
+      <p class="eyebrow">实验现象 · 撞瓶颈式学习</p>
+      <h2>同一句话，三代回复的落差</h2>
+      <p class="lede">基线的「安全回复」和长句崩坏不是 bug，而是引入注意力与 Transformer 的动机。</p>
+    </div>
+    <div class="table-wrap reveal">
+      <table class="dialogue">
+        <thead><tr><th>输入</th><th>① Seq2Seq</th><th>③ Transformer</th></tr></thead>
+        <tbody>
+          <tr><td class="q">你好</td><td class="bad">我是 &lt;unk&gt;</td><td class="good">你好可爱</td></tr>
+          <tr><td class="q">真的吗</td><td class="bad">对，对，</td><td class="good">当然啦，我是你的</td></tr>
+          <tr><td class="q">你这么会说话吗</td><td class="bad">你懂</td><td class="good">我是小通</td></tr>
+          <tr><td class="q">你今天心情怎么样</td><td class="bad">（重复 / 跑偏）</td><td class="good">那就和我聊天了，我抱着你的吧</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 结果 ================= -->
+<section class="bottleneck">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <p class="eyebrow">量化结果 · 一个反直觉的发现</p>
+      <h2>困惑度 ≠ 生成质量</h2>
+    </div>
+
+    <div class="tables-2 reveal">
+      <div>
+        <h3>困惑度 ppl（统一数据 · teacher forcing）</h3>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>模型</th><th>ppl ↓</th><th>训练速度</th></tr></thead>
+            <tbody>
+              <tr><td>① Seq2Seq</td><td>9.9</td><td>中</td></tr>
+              <tr><td>② Attn-Seq2Seq</td><td class="best">5.5</td><td>慢</td></tr>
+              <tr><td>③ Transformer</td><td>12.9</td><td class="best">快·并行</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <h3>回复多样性 Distinct（越高越丰富）</h3>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>策略</th><th>D-1</th><th>D-2</th><th>均长</th></tr></thead>
+            <tbody>
+              <tr><td>Seq2Seq</td><td>0.671</td><td>0.947</td><td>8.5</td></tr>
+              <tr><td>Attn-Seq2Seq</td><td>0.667</td><td>0.954</td><td>7.5</td></tr>
+              <tr><td>TF · greedy</td><td class="best">0.739</td><td>0.949</td><td>8.8</td></tr>
+              <tr><td>TF · beam</td><td>0.726</td><td class="best">0.971</td><td class="best">11.3</td></tr>
+              <tr><td>TF · top-k</td><td>0.634</td><td>0.958</td><td>8.2</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="margin-note reveal">
+      <b>为什么 Transformer 的 ppl 反而不是最低？</b> 困惑度衡量的是 teacher forcing 下「预测下一字」的准确度，
+      而非真实自回归生成的连贯度。Transformer 在真实生成（对话、Distinct 多样性）上最优；它的 ppl 偏高，
+      源于仅训练 12 轮、未用 Noam warmup，相对其容量训练不足。<b>评价生成模型不能只看一个指标。</b>
+    </div>
+
+    <div class="figs reveal">
+      <figure class="fig">
+        <img src="assets/attn_heatmap.png" alt="Attention-Seq2Seq 注意力热力图">
+        <figcaption>② Attn-Seq2Seq · 编码-解码对齐热力图</figcaption>
+      </figure>
+      <figure class="fig">
+        <img src="assets/tf_heatmap.png" alt="Transformer 交叉注意力热力图">
+        <figcaption>③ Transformer · 末层交叉注意力（多头平均）</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 解码策略 ================= -->
+<section>
+  <div class="wrap">
+    <div class="section-head reveal">
+      <p class="eyebrow">优化 · 不重训也能提升的部分</p>
+      <h2>训练好之后，怎么「选词」也很关键</h2>
+      <p class="lede">同一个模型，换一种解码策略，回复质量天差地别。三者皆已禁 &lt;unk&gt; + 重复惩罚。</p>
+    </div>
+    <div class="decodes reveal">
+      <article class="decode">
+        <h3>greedy</h3>
+        <p class="ex">你好可爱</p>
+        <p>每步只挑当前最大概率。最快，但易陷入重复与保守的「安全回复」。</p>
+      </article>
+      <article class="decode">
+        <h3>beam search</h3>
+        <p class="ex">为什么要幸福，开心点嘛？</p>
+        <p>同时保留多条候选，选整句概率最高的。回复最完整，Distinct-2 最高。</p>
+      </article>
+      <article class="decode">
+        <h3>top-k 采样</h3>
+        <p class="ex">是你才怪呢你全家都好</p>
+        <p>在前 k 个高概率词里按概率随机采样。回复更「活」、口语化、不呆板。</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ================= Footer ================= -->
+<footer>
+  <div class="wrap">
+    <p class="eyebrow">读完，去亲手跑一遍</p>
+    <h2>资料与运行</h2>
+    <div class="ref-grid">
+      <div>
+        <h4>入门（中文）</h4>
+        <ul>
+          <li><a href="https://zh.d2l.ai">动手学深度学习 d2l</a></li>
+          <li>李宏毅 · self-attention</li>
+        </ul>
+      </div>
+      <div>
+        <h4>图解</h4>
+        <ul>
+          <li><a href="https://jalammar.github.io/illustrated-transformer/">The Illustrated Transformer</a></li>
+          <li><a href="https://nlp.seas.harvard.edu/annotated-transformer/">The Annotated Transformer</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>论文</h4>
+        <ul>
+          <li>Seq2Seq · 1409.3215</li>
+          <li>Attention · 1409.0473</li>
+          <li>Transformer · 1706.03762</li>
+        </ul>
+      </div>
+    </div>
+    <pre class="run"># 三代模型，同样的命令风格
+python seq2seq.py train     &amp;&amp; python seq2seq.py chat
+python attn_seq2seq.py train &amp;&amp; python attn_seq2seq.py heatmap "你今天心情怎么样"
+python transformer.py train  &amp;&amp; python transformer.py chat
+python eval.py              <span class="c"># Distinct 多样性评测</span></pre>
+    <p class="colophon">中文聊天机器人 · 三代模型对比 · 学习站 — 视觉母题：方格稿纸 ⟷ 注意力矩阵</p>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>

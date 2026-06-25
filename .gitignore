@@ -7,6 +7,8 @@
 
 # 生成的图片
 *.png
+# 但保留学习网站自带的素材
+!web/assets/*.png
 
 # 论文 PDF
 *.pdf

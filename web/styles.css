@@ -1,0 +1,288 @@
+/* =====================================================================
+   从 Seq2Seq 到 Transformer · 学习站
+   设计母题：方格稿纸 ⟷ 注意力矩阵
+   ===================================================================== */
+
+:root {
+  /* 调色板（稿纸 / 校对世界） */
+  --paper:     #F3F2E9;
+  --paper-2:   #ECEADD;
+  --grid:      #C5D2BD;
+  --ink:       #20262A;
+  --ink-soft:  #4B5258;
+  --jade:      #2C6E54;
+  --jade-deep: #1F4E3C;
+  --vermilion: #C8442B;
+  --amber:     #E3A52E;
+
+  /* 字体 */
+  --serif: "Noto Serif SC", Georgia, serif;
+  --sans:  "Noto Sans SC", system-ui, sans-serif;
+  --mono:  "JetBrains Mono", ui-monospace, monospace;
+
+  /* 网格单元 */
+  --cell: 30px;
+
+  --maxw: 1080px;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; overflow-x: hidden; }
+
+body {
+  margin: 0;
+  font-family: var(--sans);
+  color: var(--ink);
+  background-color: var(--paper);
+  /* 方格稿纸底纹：贯穿全站的结构母题 */
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: var(--cell) var(--cell);
+  background-position: center top;
+  line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 网格太抢眼会影响阅读：用一层半透明纸盖住，只留隐约方格 */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: var(--paper);
+  opacity: 0.86;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+/* ---------- 通用排版 ---------- */
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--jade);
+  margin: 0 0 14px;
+}
+h1, h2, h3 { font-family: var(--serif); font-weight: 700; line-height: 1.2; letter-spacing: 0.01em; }
+h2 { font-size: clamp(1.7rem, 3.6vw, 2.5rem); margin: 0 0 8px; }
+h3 { font-size: 1.25rem; margin: 0 0 8px; }
+p  { margin: 0 0 1rem; }
+a  { color: var(--jade-deep); }
+
+.lede { font-size: 1.1rem; color: var(--ink-soft); max-width: 60ch; }
+
+section { padding: 92px 0; position: relative; }
+.section-head { margin-bottom: 40px; }
+
+/* 朱红校对短横，作为小节标记 */
+.section-head .eyebrow::before {
+  content: "▌ ";
+  color: var(--vermilion);
+}
+
+/* ===================================================================
+   HERO
+   =================================================================== */
+.hero { padding: 120px 0 80px; }
+.hero .eyebrow { color: var(--vermilion); }
+.hero h1 {
+  font-size: clamp(2.6rem, 7vw, 5rem);
+  margin: 0 0 18px;
+  letter-spacing: 0.02em;
+}
+.hero h1 .arrow { color: var(--jade); font-family: var(--mono); font-weight: 400; }
+.hero .sub { font-size: 1.2rem; color: var(--ink-soft); max-width: 52ch; margin-bottom: 40px; }
+.hero .meta {
+  font-family: var(--mono); font-size: 0.8rem; color: var(--ink-soft);
+  display: flex; gap: 22px; flex-wrap: wrap; border-top: 1px solid var(--grid);
+  padding-top: 16px; margin-top: 8px;
+}
+.hero .meta b { color: var(--jade); font-weight: 600; }
+
+/* ---------- 签名：注意力矩阵（方格） ---------- */
+.attn-demo {
+  margin: 56px 0 0;
+  border: 1px solid var(--grid);
+  background: rgba(255,255,255,0.5);
+  padding: 26px 24px 20px;
+}
+.attn-demo { overflow: hidden; }
+.attn-demo .cap {
+  font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--ink-soft); margin-bottom: 18px;
+  display: flex; justify-content: space-between; align-items: baseline;
+  flex-wrap: wrap; gap: 4px 18px;
+}
+.attn-grid { display: grid; gap: 4px; }
+.attn-grid .row { display: grid; gap: 4px; align-items: center; }
+.attn-grid .lbl {
+  font-family: var(--serif); font-size: 1rem; text-align: center;
+  color: var(--ink-soft);
+}
+.attn-grid .lbl.col { color: var(--jade-deep); padding-bottom: 4px; }
+.cell {
+  aspect-ratio: 1 / 1;
+  border-radius: 2px;
+  background: var(--paper-2);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--serif); font-size: 0.95rem; color: transparent;
+  transition: background-color .5s ease, color .3s ease, transform .3s ease;
+}
+.legend {
+  display: flex; align-items: center; gap: 8px; font-family: var(--mono);
+  font-size: 0.7rem; color: var(--ink-soft); margin-top: 16px;
+}
+.legend .bar {
+  height: 8px; width: 140px; border-radius: 4px;
+  background: linear-gradient(90deg, var(--paper-2), var(--jade), var(--amber), var(--vermilion));
+}
+
+/* ===================================================================
+   演进时间线（书脊）
+   =================================================================== */
+.spine { list-style: none; margin: 0; padding: 0; }
+.spine li {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 24px;
+  padding: 28px 0;
+  border-top: 1px solid var(--grid);
+}
+.spine li:last-child { border-bottom: 1px solid var(--grid); }
+.spine .no {
+  font-family: var(--mono); font-size: 1.5rem; font-weight: 700;
+  color: var(--jade); line-height: 1;
+}
+.spine .who { font-family: var(--serif); font-size: 1.35rem; margin: 0 0 4px; }
+.spine .solves { color: var(--ink-soft); margin: 0; }
+.spine .solves b { color: var(--vermilion); font-weight: 600; }
+.spine .tag {
+  display: inline-block; font-family: var(--mono); font-size: 0.68rem;
+  letter-spacing: 0.1em; color: var(--jade-deep); border: 1px solid var(--grid);
+  padding: 2px 8px; border-radius: 3px; margin-top: 10px;
+}
+
+/* ===================================================================
+   三代模型卡片
+   =================================================================== */
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+.card {
+  background: rgba(255,255,255,0.6);
+  border: 1px solid var(--grid);
+  border-top: 3px solid var(--jade);
+  padding: 26px 22px;
+  display: flex; flex-direction: column;
+}
+.card.accent-v { border-top-color: var(--vermilion); }
+.card.accent-a { border-top-color: var(--amber); }
+.card .kicker { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.16em; color: var(--ink-soft); }
+.card h3 { margin: 6px 0 12px; }
+.card .role { font-size: 0.92rem; color: var(--ink-soft); margin-bottom: 16px; }
+.card .point { font-size: 0.9rem; margin: 0 0 6px; padding-left: 16px; position: relative; }
+.card .point::before { content: "—"; position: absolute; left: 0; color: var(--jade); }
+.card pre { margin-top: auto; }
+
+pre {
+  font-family: var(--mono); font-size: 0.74rem; line-height: 1.6;
+  background: var(--ink); color: #D9E4DC; border-radius: 4px;
+  padding: 14px 16px; overflow-x: auto; margin: 16px 0 0;
+}
+pre .c { color: #7E9C88; }       /* 注释 */
+pre .k { color: var(--amber); }  /* 关键词 */
+code.inline {
+  font-family: var(--mono); font-size: 0.86em;
+  background: var(--paper-2); padding: 1px 6px; border-radius: 3px;
+}
+
+/* ===================================================================
+   撞瓶颈 · 对话对比
+   =================================================================== */
+.bottleneck { background: var(--paper-2); }
+.dialogue { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.dialogue th, .dialogue td { text-align: left; padding: 14px 16px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+.dialogue th { font-family: var(--mono); font-size: 0.74rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft); }
+.dialogue .q { font-family: var(--serif); }
+.dialogue .bad { color: var(--ink-soft); }
+.dialogue .good { color: var(--jade-deep); font-weight: 500; }
+
+/* 校对式旁注 */
+.margin-note {
+  border-left: 3px solid var(--vermilion);
+  background: rgba(200,68,43,0.05);
+  padding: 16px 20px; margin: 28px 0 0;
+  font-size: 0.95rem;
+}
+.margin-note b { color: var(--vermilion); }
+
+/* ===================================================================
+   结果 · 表格 + 热力图
+   =================================================================== */
+.data-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.82rem; }
+.data-table th, .data-table td { padding: 12px 14px; border-bottom: 1px solid var(--grid); text-align: right; }
+.data-table th:first-child, .data-table td:first-child { text-align: left; font-family: var(--sans); }
+.data-table th { color: var(--ink-soft); letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.7rem; }
+.data-table .best { color: var(--jade-deep); font-weight: 700; }
+.data-table tr:hover { background: rgba(255,255,255,0.4); }
+
+.figs { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 36px; }
+.fig { border: 1px solid var(--grid); background: #fff; padding: 12px; }
+.fig img { width: 100%; height: auto; display: block; }
+.fig figcaption { font-family: var(--mono); font-size: 0.72rem; color: var(--ink-soft); margin-top: 10px; letter-spacing: 0.04em; }
+
+.table-wrap { overflow-x: auto; }
+.tables-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; }
+.tables-2 h3 { font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--jade); font-weight: 500; }
+
+/* ===================================================================
+   解码策略
+   =================================================================== */
+.decodes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+.decode {
+  border: 1px solid var(--grid); padding: 22px; background: rgba(255,255,255,0.5);
+}
+.decode h3 { font-family: var(--mono); font-size: 0.9rem; letter-spacing: 0.06em; color: var(--jade-deep); }
+.decode .ex { font-family: var(--serif); font-size: 1.05rem; color: var(--ink); margin: 12px 0; padding: 10px 14px; background: var(--paper-2); border-radius: 3px; }
+.decode p { font-size: 0.88rem; color: var(--ink-soft); margin: 0; }
+
+/* ===================================================================
+   Footer
+   =================================================================== */
+footer { background: var(--ink); color: #C9D3CC; padding: 64px 0 48px; }
+footer .eyebrow { color: var(--amber); }
+footer a { color: #9FD3B6; }
+footer h2 { color: var(--paper); }
+.ref-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 28px; margin-top: 28px; }
+.ref-grid h4 { font-family: var(--mono); font-size: 0.74rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--amber); margin: 0 0 10px; }
+.ref-grid ul { list-style: none; padding: 0; margin: 0; font-size: 0.86rem; line-height: 2; }
+footer .run { font-family: var(--mono); font-size: 0.78rem; background: rgba(255,255,255,0.06); padding: 16px 18px; border-radius: 4px; margin-top: 30px; color: #B7C6BC; }
+footer .colophon { margin-top: 40px; font-size: 0.76rem; color: #7E8C83; border-top: 1px solid #38423B; padding-top: 20px; }
+
+/* ===================================================================
+   动效 + 无障碍
+   =================================================================== */
+.reveal { opacity: 0; transform: translateY(18px); transition: opacity .7s ease, transform .7s ease; }
+.reveal.in { opacity: 1; transform: none; }
+
+:focus-visible { outline: 2px solid var(--vermilion); outline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; scroll-behavior: auto; }
+  .reveal { opacity: 1; transform: none; }
+}
+
+/* ===================================================================
+   响应式
+   =================================================================== */
+@media (max-width: 860px) {
+  .cards, .decodes, .figs, .tables-2 { grid-template-columns: 1fr; }
+  section { padding: 64px 0; }
+  .hero { padding: 84px 0 56px; }
+  .spine li { grid-template-columns: 44px 1fr; gap: 16px; }
+  .attn-demo { padding: 18px 12px 16px; }
+  .attn-grid .row { gap: 3px; }
+  .attn-grid .lbl, .attn-grid .lbl.col { font-size: 0.82rem; }
+}
