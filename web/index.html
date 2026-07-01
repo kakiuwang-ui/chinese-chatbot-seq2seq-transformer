@@ -12,8 +12,33 @@
 </head>
 <body>
 
+<!-- ================= 左侧常驻导航（目录 · 与每个章节一一对应） ================= -->
+<nav class="siderail" aria-label="目录">
+  <a class="rail-brand" href="#top">
+    <span class="rail-brand-mark" aria-hidden="true">◧</span>
+    <span class="rail-brand-txt">Seq2Seq <b>→</b> Transformer<small>中文对话 · 三代对比学习站</small></span>
+  </a>
+  <ol class="rail-list">
+    <span class="rail-fill" id="rail-fill" aria-hidden="true"></span>
+    <li><a href="#top"><i class="dot"></i><span class="idx">00</span><span class="lbl">概览</span></a></li>
+    <li><a href="#method"><i class="dot"></i><span class="idx">01</span><span class="lbl">方法论</span></a></li>
+    <li><a href="#data"><i class="dot"></i><span class="idx">02</span><span class="lbl">数据预处理</span></a></li>
+    <li><a href="#evolution"><i class="dot"></i><span class="idx">03</span><span class="lbl">技术演进</span></a></li>
+    <li><a href="#models"><i class="dot"></i><span class="idx">04</span><span class="lbl">三代对比</span></a></li>
+    <li><a href="#attention"><i class="dot"></i><span class="idx">05</span><span class="lbl">注意力机制</span></a></li>
+    <li><a href="#mask"><i class="dot"></i><span class="idx">06</span><span class="lbl">三种 Mask</span></a></li>
+    <li><a href="#posenc"><i class="dot"></i><span class="idx">07</span><span class="lbl">位置编码 · 并行</span></a></li>
+    <li><a href="#impl"><i class="dot"></i><span class="idx">08</span><span class="lbl">逐模块实现</span></a></li>
+    <li><a href="#gap"><i class="dot"></i><span class="idx">09</span><span class="lbl">三代落差</span></a></li>
+    <li><a href="#results"><i class="dot"></i><span class="idx">10</span><span class="lbl">量化结果</span></a></li>
+    <li><a href="#decode"><i class="dot"></i><span class="idx">11</span><span class="lbl">解码策略</span></a></li>
+    <li><a href="#glossary"><i class="dot"></i><span class="idx">12</span><span class="lbl">概念速查</span></a></li>
+    <li><a href="#refs"><i class="dot"></i><span class="idx">13</span><span class="lbl">资料 · 运行</span></a></li>
+  </ol>
+</nav>
+
 <!-- ================= HERO ================= -->
-<header class="hero">
+<header class="hero" id="top">
   <div class="wrap">
     <p class="eyebrow">NLP 综合实习 · 题目二 · 学习站</p>
     <h1>从 Seq2Seq <span class="arrow">→</span> Transformer</h1>
@@ -38,7 +63,7 @@
 </header>
 
 <!-- ================= 方法论 ================= -->
-<section>
+<section id="method">
   <div class="wrap prose">
     <div class="section-head reveal">
       <p class="eyebrow">方法论 · 为什么逐代手写</p>
@@ -55,7 +80,7 @@
 </section>
 
 <!-- ================= 数据与预处理 ================= -->
-<section class="bottleneck">
+<section class="bottleneck" id="data">
   <div class="wrap prose">
     <div class="section-head reveal">
       <p class="eyebrow">阶段 0 · 一切的地基</p>
@@ -84,7 +109,7 @@
 </section>
 
 <!-- ================= 演进时间线 ================= -->
-<section>
+<section id="evolution">
   <div class="wrap">
     <div class="section-head reveal">
       <p class="eyebrow">技术演进 · 一条解决缺陷的链条</p>
@@ -137,7 +162,7 @@
 </section>
 
 <!-- ================= 三代模型 ================= -->
-<section class="bottleneck">
+<section class="bottleneck" id="models">
   <div class="wrap">
     <div class="section-head reveal">
       <p class="eyebrow">三代实现 · 同一份数据 · 公平对比</p>
@@ -186,7 +211,7 @@ out  = attn · V</pre>
 </section>
 
 <!-- ================= 注意力机制详解 ================= -->
-<section>
+<section id="attention">
   <div class="wrap prose">
     <div class="section-head reveal">
       <p class="eyebrow">深入 · 整个 Transformer 的心脏</p>
@@ -216,7 +241,7 @@ out  = attn · V</pre>
 </section>
 
 <!-- ================= 三种 mask ================= -->
-<section class="bottleneck">
+<section class="bottleneck" id="mask">
   <div class="wrap">
     <div class="section-head reveal">
       <p class="eyebrow">深入 · 初学者最大的混淆点</p>
@@ -247,7 +272,7 @@ out  = attn · V</pre>
 </section>
 
 <!-- ================= 位置编码 / 并行 ================= -->
-<section>
+<section id="posenc">
   <div class="wrap prose">
     <div class="section-head reveal">
       <p class="eyebrow">深入 · 另外两个关键设计</p>
@@ -279,8 +304,169 @@ out  = attn · V</pre>
   </div>
 </section>
 
+<!-- ================= Transformer 逐模块拆解 ================= -->
+<section id="impl">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <p class="eyebrow">阶段 3 · 从零手写 · 对照《Attention Is All You Need》</p>
+      <h2>Transformer 是怎么实现的</h2>
+      <p class="lede">不调 <code class="inline">nn.Transformer</code>，逐模块对照原论文手写：多头注意力、三种 mask、位置编码、Pre-LN 残差块，再到并行训练与解码优化。下面每一块都配上项目里的<b>真实代码</b>。</p>
+    </div>
+
+    <div class="concept reveal">
+      <b>统一配置（与前两代对齐，只让架构变量单独发挥）：</b>
+      <code class="inline">d_model=256</code> · <code class="inline">n_heads=8</code> · <code class="inline">n_layers=3</code> · <code class="inline">d_ff=512</code> · <code class="inline">dropout=0.1</code> · 5 万样本 · Apple MPS。整体数据流：<b>Embedding×√d_model → 位置编码 → 3 层 Encoder → 3 层 Decoder → 线性投影到词表</b>。训练用 <code class="inline">Noam warmup</code>（2000 步预热）跑 20 轮——见文末结果区，正是它把 ppl 从 12.9 压到 4.48。
+    </div>
+
+    <div class="codewalk reveal">
+
+      <!-- ① 多头注意力 -->
+      <div class="step-row">
+        <div class="why">
+          <span class="num">模块 01 · 心脏</span>
+          <h3>多头注意力（含 Scaled Dot-Product）</h3>
+          <p><b>怎么做：</b>三个线性层把输入投影成 Q/K/V，用 <code class="inline">view+transpose</code> 拆成 8 个头（<code class="inline">[B,len,256]→[B,8,len,32]</code>）；核心就一行 <code class="inline">QKᵀ/√d_k</code>，softmax 后加权 V，再合并回来过 <code class="inline">wo</code>。</p>
+          <p><b>为什么除以 √d_k：</b>维度越高点积越大，会把 softmax 推入饱和区、梯度趋 0。除以 √d_k（这里 =√32≈5.66）把方差拉回 ~1。</p>
+          <p><b>为什么多头：</b>单组 Q/K/V 只能学一种关系；8 个头在不同子空间并行注意，有的管语法、有的管指代。<span class="hl">self.attn 存下权重，专为画交叉注意力热力图。</span></p>
+        </div>
+        <figure class="code-file">
+          <figcaption class="fname">transformer.py · MultiHeadAttention.forward</figcaption>
+<pre><span class="k">def</span> <span class="f">forward</span>(self, query, key, value, mask=<span class="k">None</span>):
+    B = query.size(<span class="n">0</span>)
+    <span class="c"># 线性映射后拆多头：[B,len,d_model] -> [B,h,len,d_k]</span>
+    Q = self.wq(query).view(B,-<span class="n">1</span>,self.h,self.d_k).transpose(<span class="n">1</span>,<span class="n">2</span>)
+    K = self.wk(key)  .view(B,-<span class="n">1</span>,self.h,self.d_k).transpose(<span class="n">1</span>,<span class="n">2</span>)
+    V = self.wv(value).view(B,-<span class="n">1</span>,self.h,self.d_k).transpose(<span class="n">1</span>,<span class="n">2</span>)
+
+    <span class="c"># Scaled Dot-Product：QKᵀ / √d_k</span>
+    scores = torch.matmul(Q, K.transpose(-<span class="n">2</span>,-<span class="n">1</span>)) / math.sqrt(self.d_k)
+    <span class="k">if</span> mask <span class="k">is not</span> <span class="k">None</span>:
+        scores = scores.masked_fill(mask==<span class="n">0</span>, -<span class="n">1e9</span>)  <span class="c"># 屏蔽→≈0</span>
+    attn = F.softmax(scores, dim=-<span class="n">1</span>)
+    self.attn = attn.detach()          <span class="c"># 存权重画热力图</span>
+    out = torch.matmul(attn, V)        <span class="c"># [B,h,len,d_k]</span>
+    <span class="c"># 合并多头 -> [B,len,d_model]</span>
+    out = out.transpose(<span class="n">1</span>,<span class="n">2</span>).contiguous().view(B,-<span class="n">1</span>,self.h*self.d_k)
+    <span class="k">return</span> self.wo(out)</pre>
+        </figure>
+      </div>
+
+      <!-- ② 三种 mask -->
+      <div class="step-row">
+        <div class="why">
+          <span class="num">模块 02 · 初学者最大混淆点</span>
+          <h3>三种 mask，两个函数搞定</h3>
+          <p><b>怎么做：</b><code class="inline">make_src_mask</code> 只做 padding mask；<code class="inline">make_tgt_mask</code> 把「目标 pad」和 <code class="inline">torch.tril</code> 上三角 <span class="hl">取交集（<code class="inline">pad &amp; sub</code>）</span>，一步同时满足「不看 pad」＋「不看未来」。</p>
+          <p><b>为什么要上三角：</b>训练时整句一起喂进去，若不挡未来，预测第 t 字时就能看到第 t 字本身＝抄答案，推理必崩。它同时也是<b>能并行训练的前提</b>。</p>
+          <p>屏蔽统一用 <code class="inline">masked_fill(mask==0,-1e9)</code>，因 e<sup>−∞</sup>≈0，softmax 后权重自然归零。</p>
+        </div>
+        <figure class="code-file">
+          <figcaption class="fname">transformer.py · make_src_mask / make_tgt_mask</figcaption>
+<pre><span class="k">def</span> <span class="f">make_src_mask</span>(self, src):
+    <span class="c"># ① padding mask：屏蔽输入 &lt;pad&gt;  [B,1,1,src_len]</span>
+    <span class="k">return</span> (src != PAD_ID).unsqueeze(<span class="n">1</span>).unsqueeze(<span class="n">2</span>)
+
+<span class="k">def</span> <span class="f">make_tgt_mask</span>(self, tgt):
+    pad = (tgt != PAD_ID).unsqueeze(<span class="n">1</span>).unsqueeze(<span class="n">2</span>)   <span class="c"># ③ 目标 pad</span>
+    L = tgt.size(<span class="n">1</span>)
+    sub = torch.tril(torch.ones(L, L)).bool()     <span class="c"># ② look-ahead 上三角</span>
+    <span class="k">return</span> pad &amp; sub                              <span class="c"># 交集 [B,1,L,L]</span></pre>
+        </figure>
+      </div>
+
+      <!-- ③ Pre-LN 解码器层 -->
+      <div class="step-row">
+        <div class="why">
+          <span class="num">模块 03 · 残差块</span>
+          <h3>Decoder 层：Pre-LN 的三级子层</h3>
+          <p><b>怎么做：</b>每个子层前先 <code class="inline">LayerNorm</code>（Pre-LN），再进注意力/前馈，最后残差相加。解码器有三级：<b>①掩码自注意力 → ②交叉注意力（Q 来自解码器、K/V 来自编码器）→ ③前馈</b>。</p>
+          <p><b>为什么用 Pre-LN 而非论文的 Post-LN：</b>小数据、无 warmup 时 Post-LN 容易训崩；<span class="hl">Pre-LN 梯度更平滑、更稳</span>，代价是最终精度略低——一个务实取舍。</p>
+        </div>
+        <figure class="code-file">
+          <figcaption class="fname">transformer.py · DecoderLayer.forward</figcaption>
+<pre><span class="k">def</span> <span class="f">forward</span>(self, x, enc_out, src_mask, tgt_mask):
+    h = self.norm1(x)                       <span class="c"># 先 LayerNorm（Pre-LN）</span>
+    x = x + self.dropout(
+            self.self_attn(h,h,h, tgt_mask))       <span class="c"># ① 掩码自注意力+残差</span>
+    h = self.norm2(x)
+    x = x + self.dropout(
+            self.cross_attn(h, enc_out, enc_out, src_mask))  <span class="c"># ② 交叉注意力</span>
+    h = self.norm3(x)
+    x = x + self.dropout(self.ff(h))        <span class="c"># ③ 前馈 + 残差</span>
+    <span class="k">return</span> x</pre>
+        </figure>
+      </div>
+
+      <!-- ④ 位置编码 -->
+      <div class="step-row">
+        <div class="why">
+          <span class="num">模块 04 · 弥补位置无感</span>
+          <h3>正弦位置编码</h3>
+          <p><b>怎么做：</b>偶数维用 <code class="inline">sin</code>、奇数维用 <code class="inline">cos</code>，不同维度用不同频率，组合出每个位置独一无二的编码；<code class="inline">register_buffer</code> 存成<b>不参与训练</b>的常量。</p>
+          <p><b>为什么需要它：</b>注意力对顺序无感——「我打你」和「你打我」会被当成一样。Transformer 没有 RNN 的天然时序，必须把位置<b>显式注入</b>词向量。</p>
+          <p>Embedding 还要 <span class="hl">×√d_model</span>（对齐论文 3.4），让语义量级和位置编码匹配，不被淹没。</p>
+        </div>
+        <figure class="code-file">
+          <figcaption class="fname">transformer.py · PositionalEncoding</figcaption>
+<pre>pe  = torch.zeros(max_len, d_model)
+pos = torch.arange(<span class="n">0</span>, max_len).unsqueeze(<span class="n">1</span>).float()
+div = torch.exp(torch.arange(<span class="n">0</span>, d_model, <span class="n">2</span>).float()
+                * (-math.log(<span class="n">10000.0</span>) / d_model))
+pe[:, <span class="n">0</span>::<span class="n">2</span>] = torch.sin(pos * div)    <span class="c"># 偶数维 sin</span>
+pe[:, <span class="n">1</span>::<span class="n">2</span>] = torch.cos(pos * div)    <span class="c"># 奇数维 cos</span>
+self.register_buffer(<span class="s">"pe"</span>, pe.unsqueeze(<span class="n">0</span>))  <span class="c"># 常量，不训练</span></pre>
+        </figure>
+      </div>
+
+      <!-- ⑤ 并行训练 -->
+      <div class="step-row">
+        <div class="why">
+          <span class="num">模块 05 · 取代 RNN 的根本原因</span>
+          <h3>为什么能整句并行训练</h3>
+          <p><b>怎么做：</b>解码器输入取 <code class="inline">tgt[:, :-1]</code>、目标取 <code class="inline">tgt[:, 1:]</code>（右移一位），<span class="hl">一次前向就算完整句每个位置的损失</span>，没有 LSTM 那样的时间步循环。</p>
+          <p><b>为什么这是关键：</b>RNN 系解码必须一步算完再算下一步（Python 串行循环，慢）；Transformer 靠 look-ahead mask 保证每个位置只看自己之前的字，于是所有位置并行——这正是它能扩展到超大模型的原因。</p>
+        </div>
+        <figure class="code-file">
+          <figcaption class="fname">transformer.py · train()</figcaption>
+<pre>tgt_in, tgt_out = tgt[:, :-<span class="n">1</span>], tgt[:, <span class="n">1</span>:]   <span class="c"># 右移一位</span>
+logits = model(src, tgt_in)               <span class="c"># 整句一次算完，无循环！</span>
+loss = criterion(logits.reshape(-<span class="n">1</span>, V),
+                 tgt_out.reshape(-<span class="n">1</span>))
+<span class="c"># CrossEntropyLoss(ignore_index=PAD_ID) 屏蔽填充位</span>
+loss.backward()
+nn.utils.clip_grad_norm_(model.parameters(), CLIP)  <span class="c"># 裁剪</span></pre>
+        </figure>
+      </div>
+
+      <!-- ⑥ 解码优化 -->
+      <div class="step-row">
+        <div class="why">
+          <span class="num">模块 06 · 不重训也能提升</span>
+          <h3>解码优化：禁 &lt;unk&gt; + 重复惩罚</h3>
+          <p><b>怎么做：</b>解码每步把 <code class="inline">&lt;unk&gt;</code> 的 logit 直接置 −∞（永不输出未登录词）；对已生成过的字，logit 除以惩罚系数 1.3 压低，打断「下楼下楼下楼」式复读。</p>
+          <p><b>为什么有用：</b>两招都<b>只改解码、无需重训</b>，配合 greedy / beam（长度归一）/ top-k 三种策略，回复质量天差地别。</p>
+        </div>
+        <figure class="code-file">
+          <figcaption class="fname">transformer.py · _adjust_logits</figcaption>
+<pre><span class="k">def</span> <span class="f">_adjust_logits</span>(logits, generated, ban_unk, rep_penalty):
+    <span class="k">if</span> ban_unk:
+        logits[UNK_ID] = -<span class="n">1e9</span>          <span class="c"># 永不输出 &lt;unk&gt;</span>
+    <span class="k">for</span> tok <span class="k">in</span> set(generated):        <span class="c"># 已出现过的字降权</span>
+        logits[tok] = logits[tok] / rep_penalty
+    <span class="k">return</span> logits</pre>
+        </figure>
+      </div>
+
+    </div>
+
+    <div class="margin-note reveal">
+      <b>效果（实测，与前两代同数据同规模）：</b>Transformer 训练<b>最快</b>（整句并行），真实生成的回复<b>最长最连贯</b>（均长 11–12，三代最高）。曾经反直觉的是它 12 轮时 ppl=12.9 反而最高——我们判断是<b>欠拟合 + 缺学习率预热</b>，遂加 Noam warmup 训到 20 轮，<b>ppl 降到 4.48，反超成为三代最低</b>。这印证了架构本身没问题；但也别忘了 <b>ppl 只衡量 teacher forcing 下的下一字预测，不等于生成质量</b>——这仍是本项目最重要的发现之一。
+    </div>
+  </div>
+</section>
+
 <!-- ================= 撞瓶颈 ================= -->
-<section class="bottleneck">
+<section class="bottleneck" id="gap">
   <div class="wrap">
     <div class="section-head reveal">
       <p class="eyebrow">实验现象 · 撞瓶颈式学习</p>
@@ -291,10 +477,10 @@ out  = attn · V</pre>
       <table class="dialogue">
         <thead><tr><th>输入</th><th>① Seq2Seq</th><th>③ Transformer</th></tr></thead>
         <tbody>
-          <tr><td class="q">你好</td><td class="bad">我是 &lt;unk&gt;</td><td class="good">你好可爱</td></tr>
-          <tr><td class="q">真的吗</td><td class="bad">对，对，</td><td class="good">当然啦，我是你的</td></tr>
-          <tr><td class="q">你这么会说话吗</td><td class="bad">你懂</td><td class="good">我是小通</td></tr>
-          <tr><td class="q">你今天心情怎么样</td><td class="bad">（重复 / 跑偏）</td><td class="good">那就和我聊天了，我抱着你的吧</td></tr>
+          <tr><td class="q">你好</td><td class="bad">我是 &lt;unk&gt;</td><td class="good">你也好呀</td></tr>
+          <tr><td class="q">真的吗</td><td class="bad">对，对，</td><td class="good">那是当然啦，他们可是天生一对啊</td></tr>
+          <tr><td class="q">你这么会说话吗</td><td class="bad">你懂</td><td class="good">你是人吗？请回答。</td></tr>
+          <tr><td class="q">你今天心情怎么样</td><td class="bad">（重复 / 跑偏）</td><td class="good">好呀好呀，主人你的</td></tr>
         </tbody>
       </table>
     </div>
@@ -305,27 +491,29 @@ out  = attn · V</pre>
 </section>
 
 <!-- ================= 结果 ================= -->
-<section>
+<section id="results">
   <div class="wrap">
     <div class="section-head reveal">
-      <p class="eyebrow">量化结果 · 一个反直觉的发现</p>
+      <p class="eyebrow">量化结果 · 诊断 → 施策 → 验证</p>
       <h2>困惑度 ≠ 生成质量</h2>
-      <p class="lede">统一配置：5 万样本 / 12 epoch / Apple mps / 隐藏维度 256 / 8 头 / 3 层。</p>
+      <p class="lede">公平基线：三代同为 5 万样本 / 12 epoch；随后对 Transformer 单独加 Noam warmup 训到 20 epoch 作对照。硬件 Apple MPS，隐藏维度 256 / 8 头 / 3 层。</p>
     </div>
 
     <div class="tables-2 reveal">
       <div>
-        <h3>困惑度 ppl（统一数据 · teacher forcing）</h3>
+        <h3>困惑度 ppl（teacher forcing）</h3>
         <div class="table-wrap">
           <table class="data-table">
             <thead><tr><th>模型</th><th>ppl ↓</th><th>训练速度</th></tr></thead>
             <tbody>
-              <tr><td>① Seq2Seq</td><td>9.9</td><td>中</td></tr>
-              <tr><td>② Attn-Seq2Seq</td><td class="best">5.5</td><td>慢</td></tr>
-              <tr><td>③ Transformer</td><td>12.9</td><td class="best">快·并行</td></tr>
+              <tr><td>① Seq2Seq · 12ep</td><td>9.9</td><td>中</td></tr>
+              <tr><td>② Attn-Seq2Seq · 12ep</td><td>5.5</td><td>慢</td></tr>
+              <tr><td>③ Transformer · 12ep</td><td>12.9</td><td class="best">快·并行</td></tr>
+              <tr><td>③ Transformer · +warmup 20ep</td><td class="best">4.48</td><td class="best">快·并行</td></tr>
             </tbody>
           </table>
         </div>
+        <p class="tnote">同口径复算：加 warmup 后 <b>12.9 → 4.48</b>，反超 Attn 成为三代最低。</p>
       </div>
       <div>
         <h3>回复多样性 Distinct（越高越丰富）</h3>
@@ -334,10 +522,10 @@ out  = attn · V</pre>
             <thead><tr><th>策略</th><th>D-1</th><th>D-2</th><th>均长</th></tr></thead>
             <tbody>
               <tr><td>Seq2Seq</td><td>0.671</td><td>0.947</td><td>8.5</td></tr>
-              <tr><td>Attn-Seq2Seq</td><td>0.667</td><td>0.954</td><td>7.5</td></tr>
-              <tr><td>TF · greedy</td><td class="best">0.739</td><td>0.949</td><td>8.8</td></tr>
-              <tr><td>TF · beam</td><td>0.726</td><td class="best">0.971</td><td class="best">11.3</td></tr>
-              <tr><td>TF · top-k</td><td>0.634</td><td>0.958</td><td>8.2</td></tr>
+              <tr><td>Attn-Seq2Seq</td><td>0.667</td><td class="best">0.954</td><td>7.5</td></tr>
+              <tr><td>TF · greedy</td><td class="best">0.713</td><td>0.943</td><td>11.5</td></tr>
+              <tr><td>TF · beam</td><td>0.680</td><td>0.930</td><td class="best">12.5</td></tr>
+              <tr><td>TF · top-k</td><td>0.709</td><td>0.946</td><td>10.3</td></tr>
             </tbody>
           </table>
         </div>
@@ -345,9 +533,11 @@ out  = attn · V</pre>
     </div>
 
     <div class="margin-note reveal">
-      <b>为什么 Transformer 的 ppl 反而不是最低？</b> 困惑度衡量的是 teacher forcing 下「预测下一字」的准确度，
-      而非真实自回归生成的连贯度。Transformer 在真实生成（对话、Distinct 多样性）上最优；它 ppl 偏高，
-      源于仅训练 12 轮、未用 Noam warmup，相对其容量训练不足。<b>评价生成模型不能只看一个指标</b>——这是本项目最重要的发现之一。
+      <b>从「反直觉」到闭环——本项目最重要的一课：</b>同为 12 轮时，Transformer 的 ppl=12.9 反而最高，很反直觉。
+      我们没有归咎于架构，而是判断它<b>容量更大、又缺学习率预热，属于欠拟合</b>。于是给它加上 Noam warmup 并训到 20 轮，
+      <b>ppl 从 12.9 骤降到 4.48，反超 Attn 成为三代最低</b>，回复也更长更连贯——证明<b>架构没问题，是训练配置的锅</b>。
+      但即便如此，仍要记住：<b>ppl 只衡量 teacher forcing 下的下一字预测，不等于真实自回归生成质量</b>（看 Distinct：D-2 最高的其实是 Attn）。
+      评价生成模型，永远不能只看一个指标。
     </div>
 
     <div class="figs reveal">
@@ -364,7 +554,7 @@ out  = attn · V</pre>
 </section>
 
 <!-- ================= 解码策略 ================= -->
-<section class="bottleneck">
+<section class="bottleneck" id="decode">
   <div class="wrap">
     <div class="section-head reveal">
       <p class="eyebrow">优化 · 不重训也能提升的部分</p>
@@ -395,7 +585,7 @@ out  = attn · V</pre>
 </section>
 
 <!-- ================= 关键概念速查 ================= -->
-<section>
+<section id="glossary">
   <div class="wrap">
     <div class="section-head reveal">
       <p class="eyebrow">附录 · 关键概念速查</p>
@@ -419,7 +609,7 @@ out  = attn · V</pre>
 </section>
 
 <!-- ================= Footer ================= -->
-<footer>
+<footer id="refs">
   <div class="wrap">
     <p class="eyebrow">读完，去亲手跑一遍</p>
     <h2>资料与运行</h2>

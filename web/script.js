@@ -98,8 +98,48 @@
     els.forEach(el => io.observe(el));
   }
 
+  // ---- 导航滚动高亮（scrollspy）----
+  function setupScrollSpy() {
+    const links = Array.from(document.querySelectorAll(".siderail .rail-list a[href^='#']"));
+    const map = new Map();
+    links.forEach(a => {
+      const el = document.getElementById(a.getAttribute("href").slice(1));
+      if (el) map.set(el, a);
+    });
+    if (!map.size || !("IntersectionObserver" in window)) return;
+
+    const spy = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (!e.isIntersecting) return;
+        links.forEach(l => l.classList.remove("active"));
+        const link = map.get(e.target);
+        if (link) link.classList.add("active");
+      });
+    }, { rootMargin: "-45% 0px -50% 0px", threshold: 0 });
+    map.forEach((_, el) => spy.observe(el));
+  }
+
+  // ---- 竖栏阅读进度（填充高度）----
+  function setupProgress() {
+    const bar = document.getElementById("rail-fill");
+    if (!bar) return;
+    let ticking = false;
+    const update = () => {
+      const h = document.documentElement.scrollHeight - window.innerHeight;
+      const p = h > 0 ? (window.scrollY / h) * 100 : 0;
+      bar.style.height = Math.min(100, Math.max(0, p)) + "%";
+      ticking = false;
+    };
+    window.addEventListener("scroll", () => {
+      if (!ticking) { requestAnimationFrame(update); ticking = true; }
+    }, { passive: true });
+    update();
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     buildGrid();
     setupReveal();
+    setupScrollSpy();
+    setupProgress();
   });
 })();

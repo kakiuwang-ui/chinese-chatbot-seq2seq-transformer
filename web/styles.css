@@ -60,6 +60,109 @@ body::before {
 
 .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
 
+/* ---------- 左侧常驻导航（目录 · 与每个章节一一对应） ----------
+   一块固定面板，全程可见；每一格对应一个小节，滚到哪儿哪格点亮（朱红发光）。
+   面板半透明 + 毛玻璃，让底层方格稿纸隐约透出，延续注意力矩阵母题。 */
+:root { --rail-w: 246px; }
+
+.siderail {
+  position: fixed; left: 0; top: 0; bottom: 0;
+  width: var(--rail-w);
+  z-index: 50;
+  display: flex; flex-direction: column;
+  padding: 26px 20px 24px 26px;
+  background: rgba(9,9,9,0.74);
+  -webkit-backdrop-filter: blur(9px); backdrop-filter: blur(9px);
+  border-right: 1px solid var(--grid);
+  overflow-y: auto;
+}
+/* 侧栏滚动条低调处理 */
+.siderail::-webkit-scrollbar { width: 6px; }
+.siderail::-webkit-scrollbar-thumb { background: #2c2c2c; border-radius: 3px; }
+
+/* 品牌 / 标题 */
+.rail-brand {
+  display: flex; align-items: center; gap: 11px;
+  text-decoration: none; color: var(--ink);
+  padding-bottom: 20px; margin-bottom: 22px;
+  border-bottom: 1px solid var(--grid);
+}
+.rail-brand-mark {
+  font-size: 1.3rem; line-height: 1; color: var(--vermilion);
+  text-shadow: 0 0 12px rgba(227,102,74,0.55);
+}
+.rail-brand-txt {
+  font-family: var(--serif); font-weight: 700; font-size: 0.98rem; line-height: 1.25;
+}
+.rail-brand-txt b { color: var(--jade); font-family: var(--mono); font-weight: 400; margin: 0 2px; }
+.rail-brand-txt small {
+  display: block; margin-top: 5px;
+  font-family: var(--mono); font-weight: 400; font-size: 0.6rem;
+  letter-spacing: 0.04em; color: var(--ink-soft);
+}
+
+.rail-list {
+  list-style: none; margin: 0; padding: 0; position: relative;
+  display: flex; flex-direction: column; gap: 1px;
+}
+/* 竖直轨道（暗）+ 阅读进度填充（热力渐变，JS 控高度） */
+.rail-list::before {
+  content: ""; position: absolute; left: 3px; top: 8px; bottom: 8px;
+  width: 1px; background: var(--grid);
+}
+.rail-fill {
+  position: absolute; left: 3px; top: 8px; width: 1px; height: 0;
+  background: linear-gradient(180deg, var(--jade), var(--amber), var(--vermilion));
+  box-shadow: 0 0 7px rgba(227,102,74,0.5);
+  transition: height .12s linear;
+}
+.rail-list li { position: relative; line-height: 1; }
+.rail-list a {
+  display: flex; align-items: center; gap: 12px;
+  text-decoration: none; position: relative;
+  padding: 7px 10px 7px 0; border-radius: 7px;
+  transition: background-color .2s ease;
+}
+/* 注意力格子——默认暗但可辨（呼应 Hero 矩阵的 .cell），坐落在轨道上 */
+.rail-list .dot {
+  width: 7px; height: 7px; border-radius: 1px; flex-shrink: 0;
+  background: #4a4a48; position: relative; z-index: 1;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.06);
+  transition: background-color .3s ease, box-shadow .3s ease, transform .3s ease;
+}
+.rail-list .idx {
+  font-family: var(--mono); font-size: 0.62rem; color: #6b6b66;
+  flex-shrink: 0; width: 1.2em; text-align: right;
+  transition: color .2s ease;
+}
+.rail-list .lbl {
+  font-family: var(--sans); font-size: 0.84rem; letter-spacing: 0.01em;
+  color: var(--ink-soft); white-space: nowrap;
+  transition: color .2s ease, transform .2s ease;
+}
+/* 悬停：格子转绿、标签提亮并微移 */
+.rail-list a:hover { background: rgba(255,255,255,0.04); }
+.rail-list a:hover .dot { background: var(--jade); transform: scale(1.2); }
+.rail-list a:hover .lbl { color: var(--ink); }
+
+/* 当前小节 = 被点亮的热格（朱红发光）+ 高亮行 */
+.rail-list a.active { background: rgba(227,102,74,0.09); }
+.rail-list a.active .dot {
+  background: var(--vermilion); transform: scale(1.3);
+  box-shadow: 0 0 0 2px rgba(227,102,74,0.18), 0 0 11px rgba(227,102,74,0.65);
+}
+.rail-list a.active .idx { color: var(--vermilion); }
+.rail-list a.active .lbl { color: var(--ink); font-weight: 600; }
+
+/* 锚点跳转留一点顶部余量 */
+section[id], header[id] { scroll-margin-top: 24px; }
+
+/* 宽屏：给正文让出侧栏宽度，内容仍在剩余空间里居中 */
+@media (min-width: 1081px) { body { padding-left: var(--rail-w); } }
+
+/* 窄屏：侧栏易压正文 —— 直接隐藏，页面照常全宽滚动 */
+@media (max-width: 1080px) { .siderail { display: none; } }
+
 /* ---------- 通用排版 ---------- */
 .eyebrow {
   font-family: var(--mono);
@@ -195,6 +298,34 @@ pre {
 }
 pre .c { color: #7E9C88; }       /* 注释 */
 pre .k { color: var(--amber); }  /* 关键词 */
+pre .s { color: var(--jade-deep); } /* 字符串 */
+pre .n { color: var(--vermilion); } /* 数字 / 常量 */
+pre .f { color: #8CB8E0; }          /* 函数 / 方法名 */
+
+/* ===================================================================
+   代码走读（解释 + 真实代码 并排）
+   =================================================================== */
+.codewalk { display: grid; gap: 30px; margin-top: 8px; }
+.codewalk .step-row { display: grid; grid-template-columns: 0.85fr 1.15fr; gap: 30px; align-items: start; }
+.codewalk .why h3 { font-family: var(--serif); font-size: 1.2rem; margin: 0 0 10px; }
+.codewalk .why .num {
+  font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.14em;
+  color: var(--vermilion); text-transform: uppercase; display: block; margin-bottom: 6px;
+}
+.codewalk .why p { font-size: 0.92rem; color: var(--ink-soft); margin: 0 0 10px; }
+.codewalk .why p b { color: var(--ink); }
+.codewalk .why .hl { color: var(--jade-deep); font-weight: 500; }
+
+.code-file { margin: 0; }
+.code-file .fname {
+  font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em;
+  color: var(--ink-soft); background: var(--paper-2);
+  border: 1px solid var(--grid); border-bottom: none;
+  border-radius: 4px 4px 0 0; padding: 7px 13px;
+  display: inline-flex; gap: 8px; align-items: center;
+}
+.code-file .fname::before { content: "◆"; color: var(--vermilion); font-size: 0.72em; }
+.code-file pre { margin: 0; border-radius: 0 4px 4px 4px; }
 code.inline {
   font-family: var(--mono); font-size: 0.86em;
   background: var(--paper-2); padding: 1px 6px; border-radius: 3px;
@@ -238,6 +369,8 @@ code.inline {
 .table-wrap { overflow-x: auto; }
 .tables-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; }
 .tables-2 h3 { font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--jade); font-weight: 500; }
+.tnote { font-size: 0.8rem; color: var(--ink-soft); margin: 10px 0 0; }
+.tnote b { color: var(--jade-deep); }
 
 /* ===================================================================
    解码策略
@@ -331,6 +464,7 @@ dl.glossary dd { margin: 5px 0 0; font-size: 0.9rem; color: var(--ink-soft); }
    =================================================================== */
 @media (max-width: 860px) {
   .cards, .decodes, .figs, .tables-2 { grid-template-columns: 1fr; }
+  .codewalk .step-row { grid-template-columns: 1fr; gap: 16px; }
   .qkv, .twocol, dl.glossary { grid-template-columns: 1fr; gap: 0 0; }
   .qkv { gap: 14px; }
   .twocol { gap: 32px; }
