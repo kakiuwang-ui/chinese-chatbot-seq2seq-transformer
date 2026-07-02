@@ -69,6 +69,12 @@ DEVICE = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 # Multi-Head Attention（含 Scaled Dot-Product，全手写）
 # ===========================================================================
 class MultiHeadAttention(nn.Module):
+    """一句话直觉：注意力就是「带权检索」——每个词拿着自己的问题(Q)去和所有词的
+    标签(K)比对，谁对得上就多抄谁的内容(V)。所谓「多头」，是把这件事在 8 个不同的
+    子空间里各做一遍：有的头盯语法、有的头盯指代、有的头盯远距离呼应，最后拼起来，
+    比单头只能学一种关系更丰富。深层看：这是全网络里唯一让任意两个位置「直接对话」
+    的模块（距离为 1），信息不必像 RNN 那样一步步传递——这正是它能并行、能建长依赖的根。"""
+
     def __init__(self, d_model, n_heads, dropout):
         super().__init__()
         assert d_model % n_heads == 0            # 必须整除，才能把维度均分给每个头
@@ -111,6 +117,11 @@ class MultiHeadAttention(nn.Module):
 # 位置前馈网络 FFN（论文 3.3）：对每个位置独立地做一次「升维-激活-降维」
 # ===========================================================================
 class PositionwiseFeedForward(nn.Module):
+    """一句话直觉：注意力负责「跨位置搬运信息」，FFN 负责「就地深加工」。它对每个位置
+    单独套同一个小型两层网络，谁也不看谁——先升维到更宽的空间里把特征摊开、用 ReLU
+    非线性地筛选，再压回原维度。可以理解成注意力管「你该和谁说话」，FFN 管「听完之后
+    自己想清楚」。参数量其实大头在这儿，是模型真正「记住知识」的地方。"""
+
     def __init__(self, d_model, d_ff, dropout):
         super().__init__()
         self.fc1 = nn.Linear(d_model, d_ff)      # 升维：d_model -> d_ff
@@ -127,6 +138,12 @@ class PositionwiseFeedForward(nn.Module):
 # 注意力本身对顺序无感（打乱输入结果一样），所以要显式告诉模型每个词的位置
 # ===========================================================================
 class PositionalEncoding(nn.Module):
+    """一句话直觉：注意力是「一袋词」——把句子里的词打乱，算出来的结果一模一样，它天生
+    不知道谁先谁后。所以要在词向量上「盖一个位置邮戳」。这里用不同频率的 sin/cos 组合当
+    邮戳：低频维度像时针（管全局第几个词），高频维度像秒针（管相邻细节），合起来每个位置
+    都有独一无二的波形指纹。妙处在于相对位置可由三角恒等式线性表示，模型容易学到「隔几个词」
+    这种相对关系，还能外推到训练时没见过的更长句子。"""
+
     def __init__(self, d_model, dropout, max_len=500):
         super().__init__()
         self.dropout = nn.Dropout(dropout)
@@ -149,6 +166,12 @@ class PositionalEncoding(nn.Module):
 # 结构统一是：x = x + Dropout(SubLayer(LayerNorm(x)))，即「残差 + 前置归一化」
 # ===========================================================================
 class EncoderLayer(nn.Module):
+    """一句话直觉：一个编码器层 = 「互相看一眼(自注意力) + 各自消化(FFN)」。整句里每个词
+    先环顾全场、根据上下文更新自己的含义（"苹果"看到"吃"就偏向水果、看到"股价"就偏向公司），
+    再各自过 FFN 深加工。堆 N 层，就是把这个「看—想」循环做 N 遍，理解逐层加深。
+    残差(x + ...)是关键：它保证每层只需学「在原表示上补一点修正」，梯度能直通到底层，
+    深网络才训得动；pre-LN（子层前先归一化）则让这个过程在小数据上更稳、不易发散。"""
+
     def __init__(self, d_model, n_heads, d_ff, dropout):
         super().__init__()
         self.self_attn = MultiHeadAttention(d_model, n_heads, dropout)   # 自注意力子层
@@ -166,6 +189,13 @@ class EncoderLayer(nn.Module):
 
 
 class DecoderLayer(nn.Module):
+    """一句话直觉：解码器层比编码器多一次「抬头看原文」。它有三步——先「回顾已经写出的字」
+    (掩码自注意力，只能往左看，因为未来还没生成)，再「回去查问句」(交叉注意力，Q 来自
+    自己、K/V 来自编码器输出，决定这一步该聚焦输入的哪几个词)，最后 FFN 消化。这正是
+    seq2seq 的精髓：一边参考原文、一边顺着自己已写的内容，逐字接龙。那个 look-ahead 掩码
+    是训练能整句并行的命门——它让「预测第 i 个字」时严格看不到第 i 个及之后的答案，
+    于是一次前向就能同时算出所有位置的预测，而不必真的一个字一个字地跑。"""
+
     def __init__(self, d_model, n_heads, d_ff, dropout):
         super().__init__()
         self.self_attn = MultiHeadAttention(d_model, n_heads, dropout)   # 带 look-ahead 的自注意力
@@ -193,6 +223,12 @@ class DecoderLayer(nn.Module):
 # 完整 Transformer（编码器 + 解码器 + 输出层，串成一个 seq2seq）
 # ===========================================================================
 class Transformer(nn.Module):
+    """一句话直觉：整体就是「读懂问句 → 逐字写回答」。编码器把整句问话反复咀嚼成一组
+    富含上下文的向量（一份「读后理解」），解码器再拿着这份理解、顺着自己已写的字往下接龙，
+    每步在全词表上打分选下一个词。全流程只靠 embedding + 注意力 + FFN，没有一个循环结构——
+    这就是它相比 RNN 的根本优势：训练时整句并行、天然建长距离依赖、堆层数就能变强，
+    从而一路撑起了后来的大模型。"""
+
     def __init__(self, vocab_size, d_model, n_heads, n_layers, d_ff, dropout):
         super().__init__()
         # 词嵌入：把 token id 映射成向量；padding_idx 让 <pad> 的向量恒为 0 且不更新

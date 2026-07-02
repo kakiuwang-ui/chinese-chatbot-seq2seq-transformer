@@ -31,9 +31,10 @@
     <li><a href="#impl"><i class="dot"></i><span class="idx">08</span><span class="lbl">逐模块实现</span></a></li>
     <li><a href="#gap"><i class="dot"></i><span class="idx">09</span><span class="lbl">三代落差</span></a></li>
     <li><a href="#results"><i class="dot"></i><span class="idx">10</span><span class="lbl">量化结果</span></a></li>
-    <li><a href="#decode"><i class="dot"></i><span class="idx">11</span><span class="lbl">解码策略</span></a></li>
-    <li><a href="#glossary"><i class="dot"></i><span class="idx">12</span><span class="lbl">概念速查</span></a></li>
-    <li><a href="#refs"><i class="dot"></i><span class="idx">13</span><span class="lbl">资料 · 运行</span></a></li>
+    <li><a href="#warmup"><i class="dot"></i><span class="idx">11</span><span class="lbl">训练调参</span></a></li>
+    <li><a href="#decode"><i class="dot"></i><span class="idx">12</span><span class="lbl">解码策略</span></a></li>
+    <li><a href="#glossary"><i class="dot"></i><span class="idx">13</span><span class="lbl">概念速查</span></a></li>
+    <li><a href="#refs"><i class="dot"></i><span class="idx">14</span><span class="lbl">资料 · 运行</span></a></li>
   </ol>
 </nav>
 
@@ -553,6 +554,145 @@ nn.utils.clip_grad_norm_(model.parameters(), CLIP)  <span class="c"># 裁剪</sp
   </div>
 </section>
 
+<!-- ================= 训练调参 · warmup ================= -->
+<section id="warmup">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <p class="eyebrow">深入 · 复现论文模型的隐形门槛</p>
+      <h2>原先怎么训的，为什么加 warmup 会好</h2>
+      <p class="lede">同一套架构、同一份数据，只改「学习率随训练怎么走」，困惑度就从 12.9 掉到 4.48。</p>
+    </div>
+
+    <!-- 前后对照 -->
+    <div class="decodes reveal">
+      <article class="decode">
+        <h3>原先 · 固定学习率</h3>
+        <p class="ex">lr ≡ 5e-4，训 12 轮</p>
+        <p>Adam 全程恒定学习率，没有任何预热。图省事，但对大模型不友好——ppl 卡在 12.9，是三代里最高的。</p>
+      </article>
+      <article class="decode">
+        <h3>现在 · Noam warmup</h3>
+        <p class="ex">先升温、再衰减，训 20 轮</p>
+        <p>前 2000 步学习率线性爬升，之后按 step<sup>−0.5</sup> 缓降，峰值落在第 2000 步。ppl → 4.48，反超 Attn。</p>
+      </article>
+      <article class="decode">
+        <h3>差别 · 只动了调度</h3>
+        <p class="ex">架构 / 数据 / 规模全不变</p>
+        <p>没加参数、没换结构、没加数据。唯一变量是「学习率随步数怎么变」——这就是训练技巧的分量。</p>
+      </article>
+    </div>
+
+    <!-- 公式 -->
+    <div class="formula reveal">
+      lr = d_model<sup>−0.5</sup> · min( step<sup>−0.5</sup>, &nbsp;step · warmup<sup>−1.5</sup> )
+      <span class="note">step &lt; warmup：lr ∝ step（线性升温）　·　step &gt; warmup：lr ∝ step<sup>−0.5</sup>（缓慢衰减）　·　峰值在 step = warmup</span>
+    </div>
+
+    <!-- 学习率曲线示意 -->
+    <figure class="reveal lr-fig">
+      <svg viewBox="0 0 440 170" width="100%" height="auto" role="img"
+           aria-label="Noam warmup 学习率曲线：前 2000 步线性升温到峰值，之后按 step 的 -0.5 次方缓慢衰减">
+        <!-- 坐标轴 -->
+        <line x1="36" y1="140" x2="424" y2="140" stroke="#3a3a3a" stroke-width="1"/>
+        <line x1="36" y1="18"  x2="36"  y2="140" stroke="#3a3a3a" stroke-width="1"/>
+        <!-- 升温段（线性） -->
+        <path d="M36 136 L132 36" fill="none" stroke="#57B98C" stroke-width="2.5"/>
+        <!-- 衰减段（step^-0.5） -->
+        <path d="M132 36 C196 54 300 82 424 100" fill="none" stroke="#E3664A" stroke-width="2.5"/>
+        <!-- 峰值标记 -->
+        <line x1="132" y1="36" x2="132" y2="140" stroke="#E9B14A" stroke-width="1" stroke-dasharray="3 4"/>
+        <circle cx="132" cy="36" r="4" fill="#E9B14A"/>
+        <!-- 文字 -->
+        <text x="138" y="32" fill="#ECEAE3" font-family="JetBrains Mono, monospace" font-size="12">峰值 · step = 2000（warmup）</text>
+        <text x="60"  y="120" fill="#57B98C" font-family="JetBrains Mono, monospace" font-size="11">升温 ∝ step</text>
+        <text x="250" y="72"  fill="#E3664A" font-family="JetBrains Mono, monospace" font-size="11">衰减 ∝ step⁻⁰·⁵</text>
+        <text x="404" y="156" fill="#9B9B95" font-family="JetBrains Mono, monospace" font-size="10" text-anchor="end">训练步数 →</text>
+        <text x="16"  y="24"  fill="#9B9B95" font-family="JetBrains Mono, monospace" font-size="10">lr</text>
+      </svg>
+      <figcaption>Noam 学习率曲线：先把油门缓缓踩下去（绿），到第 2000 步到顶，再慢慢松（朱红）。</figcaption>
+    </figure>
+
+    <!-- 代码走读：改了什么 -->
+    <div class="codewalk reveal">
+      <div class="step-row">
+        <div class="why">
+          <span class="num">代码 · 到底改了什么</span>
+          <h3>两行调度，替掉一个常数</h3>
+          <p><b>原先：</b>建好 Adam 就把 <code class="inline">lr=5e-4</code> 定死，训练循环里再不碰它。</p>
+          <p><b>现在：</b>每个 step 先按 Noam 公式算出当前 lr、写回优化器，再 <code class="inline">step()</code>。<span class="hl">warmup=2000，训练拉到 20 轮。</span></p>
+          <p>注意 Adam 的 <code class="inline">betas=(0.9, 0.98)</code> 也对齐论文——β₂ 从常见的 0.999 调到 0.98，让方差估计更快跟上，与 warmup 配套。</p>
+        </div>
+        <figure class="code-file">
+          <figcaption class="fname">transformer.py · noam_lr + 训练循环</figcaption>
+<pre><span class="c"># 论文 5.3 的学习率调度</span>
+<span class="k">def</span> <span class="f">noam_lr</span>(step):
+    step = max(step, <span class="n">1</span>)
+    <span class="k">return</span> (D_MODEL ** -<span class="n">0.5</span>) * min(
+        step ** -<span class="n">0.5</span>, step * (WARMUP ** -<span class="n">1.5</span>))
+
+<span class="c"># 原先：opt = Adam(..., lr=5e-4)  # 全程恒定，循环里不再动</span>
+<span class="c"># 现在：每个 step 先更新 lr 再 step()</span>
+step += <span class="n">1</span>
+<span class="k">for</span> g <span class="k">in</span> opt.param_groups:
+    g[<span class="s">"lr"</span>] = noam_lr(step)      <span class="c"># 按曲线覆盖学习率</span>
+opt.step()</pre>
+        </figure>
+      </div>
+    </div>
+
+    <!-- 为什么有效 -->
+    <div class="reveal why-effective">
+      <h3>为什么它真的有效（三条机理）</h3>
+      <ol class="steps">
+        <li><b>给 Adam 时间把「方差估计」稳住。</b>Adam 的自适应步长 ≈ <code class="inline">lr / √v</code>，其中 v 是梯度平方的滑动平均。训练最初几十步 v 的样本太少、噪声极大，直接上大 lr 会让步长忽大忽小，把刚初始化的权重甩飞。先用小 lr 预热，等 v 估计稳定了再提速。</li>
+        <li><b>别在起跑就把注意力推进饱和区。</b>刚初始化时若 lr 过大，<code class="inline">softmax(QKᵀ/√d_k)</code> 很容易被推到「一个位置吃满」的饱和区，梯度≈0 就再也学不动（这正是前面讲 √d_k 时同一个坑）。小 lr 起步，让注意力分布先平滑地长开。</li>
+        <li><b>大模型 + 小数据，固定 lr 顾此失彼。</b>一个恒定 lr 要么初期太大（前期崩），要么后期太小（收敛慢）。warmup「先小 → 到峰值 → 再缓降」正好兼顾初期稳定与中期快速收敛——这也是它几乎成为复现 Transformer 标配的原因。</li>
+      </ol>
+    </div>
+
+    <!-- 原先 vs warmup 后 · 实测对比 -->
+    <div class="reveal cmp-block">
+      <h3>原先 vs warmup 后 · 实测对比</h3>
+      <div class="tables-2">
+        <div>
+          <h3>关键指标（同口径复算）</h3>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>指标</th><th>原先 · 12ep</th><th>warmup · 20ep</th></tr></thead>
+              <tbody>
+                <tr><td>困惑度 ppl ↓</td><td>12.9</td><td class="best">4.48</td></tr>
+                <tr><td>greedy 均长</td><td>8.8</td><td>11.5</td></tr>
+                <tr><td>beam 均长</td><td>11.3</td><td>12.5</td></tr>
+                <tr><td>Distinct-1 · greedy</td><td>0.739</td><td>0.713</td></tr>
+                <tr><td>Distinct-2 · beam</td><td>0.971</td><td>0.930</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <h3>同一输入的回复</h3>
+          <div class="table-wrap">
+            <table class="dialogue">
+              <thead><tr><th>输入</th><th>原先 12ep</th><th>warmup 20ep</th></tr></thead>
+              <tbody>
+                <tr><td class="q">你好</td><td>你好可爱</td><td class="good">你也好呀</td></tr>
+                <tr><td class="q">真的吗</td><td>当然啦，我是你的</td><td class="good">那是当然啦，他们可是天生一对啊</td></tr>
+                <tr><td class="q">你这么会说话吗</td><td>我是小通</td><td class="good">你是人吗？请回答。</td></tr>
+                <tr><td class="q">你今天心情怎么样</td><td>那就和我聊天了，我抱着你的吧</td><td class="good">好呀好呀，主人你的</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <p class="tnote"><b>怎么读这张对比：</b>warmup 最确定的收益是<b>训练收敛</b>——ppl 从 12.9 近乎腰斩到 4.48；生成层面回复明显<b>变长</b>（更敢展开），多样性 Distinct 基本持平、个别略降。也就是说，它主要修好的是「训练」这一环，而非直接改写生成风格——这也是它诚实的边界。</p>
+    </div>
+
+    <div class="margin-note reveal">
+      <b>总结：</b>warmup 不改变模型「能表达什么」，只改变<b>优化器怎么走到那里</b>。对 RNN/LSTM 这类小模型它可有可无，但对 Transformer——大模型、Adam、注意力饱和风险叠加——它几乎是「能不能训出来」的分水岭。这正是我们从 ppl=12.9 的教训里学到的：<b>复现论文级模型，必须配套论文级的训练技巧。</b>
+    </div>
+  </div>
+</section>
+
 <!-- ================= 解码策略 ================= -->
 <section class="bottleneck" id="decode">
   <div class="wrap">
@@ -604,6 +744,8 @@ nn.utils.clip_grad_norm_(model.parameters(), CLIP)  <span class="c"># 裁剪</sp
       <div><dt>困惑度 Perplexity</dt><dd>预测下一字不确定性的指标，越低越好（≠生成质量）。</dd></div>
       <div><dt>Distinct-n</dt><dd>不重复 n-gram 占比，衡量回复多样性。</dd></div>
       <div><dt>Beam Search</dt><dd>保留多条候选、选整句最优的解码策略。</dd></div>
+      <div><dt>学习率 lr</dt><dd>每步参数沿梯度反方向更新的步长。太大易震荡/发散，太小收敛慢。</dd></div>
+      <div><dt>Noam warmup</dt><dd>学习率先线性升温、后按 step⁻⁰·⁵ 衰减的调度，Transformer 收敛的关键。</dd></div>
     </dl>
   </div>
 </section>

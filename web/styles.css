@@ -372,6 +372,24 @@ code.inline {
 .tnote { font-size: 0.8rem; color: var(--ink-soft); margin: 10px 0 0; }
 .tnote b { color: var(--jade-deep); }
 
+/* 学习率曲线示意图 */
+.lr-fig {
+  margin: 24px 0 0; padding: 20px 22px;
+  border: 1px solid var(--grid); background: var(--code-bg); border-radius: 4px;
+}
+.lr-fig svg { display: block; overflow: visible; }
+.lr-fig figcaption {
+  font-family: var(--mono); font-size: 0.72rem; color: var(--ink-soft);
+  margin-top: 12px; letter-spacing: 0.03em;
+}
+/* warmup 小节的机理列表容器 */
+.why-effective { margin-top: 40px; }
+.why-effective h3 { font-family: var(--serif); margin-bottom: 6px; }
+
+/* 原先 vs warmup 后 · 对比块 */
+.cmp-block { margin-top: 40px; }
+.cmp-block > h3 { font-family: var(--serif); margin-bottom: 18px; }
+
 /* ===================================================================
    解码策略
    =================================================================== */

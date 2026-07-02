@@ -1,0 +1,12 @@
+{
+  // Live Server 从仓库根目录提供服务，默认端口 5500
+  "liveServer.settings.root": "/",
+  "liveServer.settings.donotShowInfoMsg": true,
+
+  // Edge Tools：默认打开的地址 = Live Server 提供的页面
+  "vscode-edge-devtools.defaultUrl": "http://127.0.0.1:5500/web/index.html",
+  // 源码根：让 DevTools 里点中的元素/样式能映射回本仓库文件
+  "vscode-edge-devtools.webRoot": "${workspaceFolder}",
+  // 在 VS Code 内嵌显示浏览器画面（而不是只弹外部窗口）
+  "vscode-edge-devtools.headless": true
+}
