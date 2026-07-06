@@ -465,6 +465,206 @@ dl.glossary dd { margin: 5px 0 0; font-size: 0.9rem; color: var(--ink-soft); }
 .data-stats div span { font-family: var(--mono); font-size: 0.74rem; color: var(--ink-soft); letter-spacing: 0.06em; }
 
 /* ===================================================================
+   直观动画演示（滚动进入即自动播放一次）
+   =================================================================== */
+.anim {
+  position: relative;
+  margin: 32px 0 8px;
+  border: 1px solid var(--grid);
+  background: rgba(255,255,255,0.035);
+  padding: 22px 22px 18px;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.anim .cap {
+  font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--ink-soft); margin-bottom: 20px;
+  padding-right: 76px;                 /* 给「↻ 重播」按钮留位，避免与状态文字重叠 */
+  display: flex; justify-content: space-between; align-items: baseline;
+  flex-wrap: wrap; gap: 4px 18px;
+}
+.anim-replay {
+  position: absolute; top: 12px; right: 12px; z-index: 2;
+  font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.04em;
+  color: var(--ink-soft); background: var(--paper-2);
+  border: 1px solid var(--grid); border-radius: 3px;
+  padding: 4px 10px; cursor: pointer;
+  transition: color .2s ease, border-color .2s ease, background-color .2s ease;
+}
+.anim-replay:hover { color: var(--jade-deep); border-color: var(--jade); background: #101a15; }
+.anim-replay:active { transform: translateY(1px); }
+.anim .cap #attn-now, .anim .cap #mask-stage-label { color: var(--jade-deep); }
+.anim .anim-note {
+  font-family: var(--mono); font-size: 0.72rem; color: var(--ink-soft);
+  margin: 18px 0 0; letter-spacing: 0.02em;
+}
+.anim figcaption:not(.cap) {
+  font-family: var(--mono); font-size: 0.72rem; color: var(--ink-soft);
+  margin-top: 12px; letter-spacing: 0.03em;
+}
+
+/* ① Seq2Seq 瓶颈 --------------------------------------------------- */
+.bn-stage {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto 1fr;
+  align-items: center; gap: 14px;
+}
+.bn-col { display: flex; flex-direction: column; gap: 7px; }
+.bn-col .bn-col-t {
+  font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.1em;
+  color: var(--ink-soft); text-transform: uppercase; margin-bottom: 2px;
+}
+.bn-chip {
+  font-family: var(--serif); font-size: 1.05rem; text-align: center;
+  padding: 7px 4px; border: 1px solid var(--grid); border-radius: 3px;
+  background: var(--paper-2); color: var(--ink-soft);
+  opacity: 0; transform: translateY(6px);
+  transition: opacity .4s ease, transform .4s ease, color .4s ease,
+              border-color .4s ease, box-shadow .4s ease;
+}
+.bn-chip.lit { opacity: 1; transform: none; }
+.bn-chip.in  { color: var(--jade-deep); border-color: var(--jade); }
+.bn-chip.in.overflow { color: var(--vermilion); border-color: var(--vermilion); opacity: .5; }
+.bn-chip.out { color: var(--ink); border-color: var(--amber); }
+.bn-arrow { font-family: var(--mono); color: var(--ink-soft); font-size: 1.1rem; text-align: center; }
+.bn-box {
+  width: 62px; height: 62px; border-radius: 4px; justify-self: center;
+  border: 2px solid var(--grid); background: var(--paper-2);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 0.6rem; color: var(--ink-soft);
+  text-align: center; line-height: 1.25; transition: box-shadow .3s ease, border-color .3s ease;
+}
+.bn-box.pulse { animation: bn-pulse .45s ease; }
+@keyframes bn-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(233,177,74,0.55); border-color: var(--amber); }
+  100% { box-shadow: 0 0 0 14px rgba(233,177,74,0); border-color: var(--vermilion); }
+}
+
+/* ①b Encoder/Decoder 按时间展开 ----------------------------------- */
+.rnn-stage { display: flex; flex-direction: column; gap: 4px; }
+.rnn-lane-h {
+  font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--ink-soft); margin: 2px 0 8px;
+}
+.rnn-lane-h b { color: var(--jade-deep); font-weight: 600; }
+.rnn-lane-h.dec b { color: var(--amber); }
+.rnn-row { display: flex; align-items: center; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+.rnn-step { display: grid; gap: 6px; justify-items: center; flex: 0 0 auto; }
+.rnn-cell {
+  width: 54px; height: 40px; border: 1px solid var(--grid); border-radius: 4px;
+  background: var(--paper-2); display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 0.58rem; color: var(--ink-soft);
+  transition: border-color .4s ease, color .4s ease, box-shadow .4s ease;
+}
+.rnn-cell.active { border-color: var(--jade); color: var(--jade-deep); animation: rnn-pulse .5s ease; }
+.rnn-step.dec .rnn-cell.active { border-color: var(--amber); color: var(--amber); }
+.rnn-cell.ctx { border-color: var(--amber); color: var(--amber); box-shadow: 0 0 0 2px rgba(233,177,74,0.28); }
+.rnn-tok {
+  font-family: var(--serif); font-size: 0.92rem; padding: 3px 9px; border-radius: 3px;
+  background: var(--paper-2); border: 1px solid var(--grid); color: var(--ink-soft);
+  opacity: .35; transition: opacity .4s ease, color .4s ease, border-color .4s ease, transform .4s ease;
+}
+.rnn-tok.lit { opacity: 1; color: var(--ink); border-color: var(--jade); }
+.rnn-tok.out { transform: translateY(4px); }
+.rnn-tok.out.lit { color: var(--amber); border-color: var(--amber); transform: none; }
+.rnn-hconn { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 1px; color: #444; font-family: var(--mono); font-size: 0.9rem; line-height: 1; transition: color .4s ease; }
+.rnn-hconn .h { font-size: 0.52rem; }
+.rnn-hconn.flow { color: var(--jade); }
+.rnn-step.dec ~ .rnn-hconn.flow, .rnn-row.dec .rnn-hconn.flow { color: var(--amber); }
+.rnn-ctx { display: flex; align-items: center; gap: 8px; margin: 6px 0 10px; font-family: var(--mono); font-size: 0.66rem; color: #555; transition: color .5s ease; }
+.rnn-ctx.flow { color: var(--amber); }
+.rnn-ctx .arrow { font-size: 1rem; }
+@keyframes rnn-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(87,185,140,0.5); }
+  100% { box-shadow: 0 0 0 12px rgba(87,185,140,0); }
+}
+
+/* ② 注意力权重分配 · 「它/小猫」示例动画 -------------------------- */
+.eg-query {
+  font-family: var(--mono); font-size: 0.78rem; color: var(--ink-soft);
+  margin-bottom: 16px; display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline;
+  opacity: .35; transition: opacity .4s ease;
+}
+.eg-query.lit { opacity: 1; }
+.eg-query b { color: var(--jade-deep); font-family: var(--serif); font-size: 1.05rem; }
+.eg-rows { display: grid; gap: 8px; }
+.eg-row { display: grid; grid-template-columns: 5rem 5rem 1fr; align-items: center; gap: 14px; }
+.eg-row.eg-head span {
+  font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--ink-soft);
+}
+.eg-row .w { font-family: var(--serif); font-size: 1.02rem; color: var(--ink); transition: color .4s ease; }
+.eg-row .w.key { color: var(--jade-deep); font-weight: 600; }
+.eg-row.hot .w.key { color: var(--amber); }
+.eg-row .sc {
+  font-family: var(--mono); font-size: 0.82rem; color: var(--ink-soft);
+  opacity: 0; transition: opacity .35s ease;
+}
+.eg-row .sc.show { opacity: 1; }
+.eg-bar {
+  position: relative; height: 22px; border-radius: 3px;
+  background: rgba(255,255,255,0.05); overflow: hidden;
+}
+.eg-bar > i {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 3px;
+  background: linear-gradient(90deg, var(--jade), var(--amber));
+  transition: width .75s cubic-bezier(.25,.8,.35,1);
+}
+.eg-bar > span {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  font-family: var(--mono); font-size: 0.7rem; color: var(--ink);
+  opacity: 0; transition: opacity .4s ease;
+}
+.eg-bar > span.show { opacity: 1; }
+.eg-note {
+  font-family: var(--mono); font-size: 0.72rem; color: var(--ink-soft);
+  margin: 14px 0 0; letter-spacing: 0.02em; line-height: 1.6;
+}
+#eg-concl { opacity: 0; transform: translateY(6px); transition: opacity .5s ease, transform .5s ease; }
+#eg-concl.show { opacity: 1; transform: none; }
+
+/* ②c 同一例子 · 整句竖条版（它 看向谁） --------------------------- */
+.sent-bars { display: flex; align-items: flex-end; gap: 8px; height: 120px; }
+.sent-bar-wrap { flex: 1; display: flex; align-items: flex-end; justify-content: center; height: 100%; }
+.sent-bar {
+  width: 62%; height: 0; border-radius: 3px 3px 0 0; background: var(--paper-2);
+  transition: height .6s ease, background-color .6s ease;
+}
+.sent-toks { display: flex; gap: 8px; margin-top: 8px; }
+.sent-tok {
+  flex: 1; text-align: center; padding: 4px 0; border-radius: 3px;
+  font-family: var(--serif); font-size: 0.98rem; color: var(--ink-soft);
+  transition: color .3s ease, background-color .3s ease;
+}
+.sent-tok.q { color: var(--jade-deep); border: 1px solid var(--jade); }   /* 提问者「它」 */
+.sent-tok.scan { background: rgba(233,177,74,0.16); color: var(--ink); }
+.sent-tok.hot { color: var(--vermilion); font-weight: 600; }
+
+/* ③ 三种 mask ------------------------------------------------------ */
+.mask-grid { display: grid; gap: 4px; max-width: 380px; }
+.mask-cell {
+  aspect-ratio: 1 / 1; border-radius: 2px; background: var(--jade);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 0.7rem; color: rgba(0,0,0,0.55);
+  transition: background-color .45s ease, color .45s ease;
+}
+.mask-cell.lbl { background: transparent; color: var(--ink-soft); font-family: var(--mono); font-size: 0.66rem; aspect-ratio: auto; }
+.mask-cell.lbl.pad { color: var(--vermilion); }
+.mask-cell.blocked { background: var(--paper-2); color: var(--ink-soft); }
+.mask-cell.blocked::after { content: "✕"; color: #5a5a5a; }
+.mask-cell.padblock { background: #241416; }
+.mask-cell.padblock::after { content: "✕"; color: var(--vermilion); }
+
+/* ④ 位置编码波形 --------------------------------------------------- */
+.anim-pe { margin: 20px 0 0; padding: 16px 16px 12px; }
+#pe-svg path {
+  fill: none; stroke-width: 2;
+  stroke-dasharray: var(--len); stroke-dashoffset: var(--len);
+  transition: stroke-dashoffset 1.1s ease;
+}
+#pe-svg path.drawn { stroke-dashoffset: 0; }
+
+/* ===================================================================
    动效 + 无障碍
    =================================================================== */
 .reveal { opacity: 0; transform: translateY(18px); transition: opacity .7s ease, transform .7s ease; }
@@ -491,6 +691,11 @@ dl.glossary dd { margin: 5px 0 0; font-size: 0.9rem; color: var(--ink-soft); }
   .hero { padding: 84px 0 56px; }
   .spine li { grid-template-columns: 44px 1fr; gap: 16px; }
   .attn-demo { padding: 18px 12px 16px; }
+  .anim { padding: 16px 12px 14px; }
+  .bn-stage { grid-template-columns: 1fr; gap: 10px; }
+  .bn-arrow { transform: rotate(90deg); }
+  .bn-box { width: 56px; height: 56px; }
+  .eg-row { grid-template-columns: 3.4rem 3.4rem 1fr; gap: 10px; }
   .attn-grid .row { gap: 3px; }
   .attn-grid .lbl, .attn-grid .lbl.col { font-size: 0.82rem; }
 }
